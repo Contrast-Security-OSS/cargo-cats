@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shipment Management - Contrast Cargo Cats</title>
+    <title>Shipment Management - Contrast Navisecure</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -82,14 +82,14 @@
     <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #1C2343;">
         <div class="container">
             <a class="navbar-brand" href="/dashboard">
-                <i class="fas fa-cat me-2" style="color: #DD6E1E;"></i>Cargo Cats
+                <i class="fas fa-box-archive me-2" style="color: #DD6E1E;"></i>Navisecure
             </a>
             <div class="navbar-nav ms-auto">
                 <a class="nav-link me-3" href="/dashboard" style="color: #F3F3F3;">
                     <i class="fas fa-tachometer-alt me-1"></i>Dashboard
                 </a>
                 <a class="nav-link me-3" href="/cats" style="color: #F3F3F3;">
-                    <i class="fas fa-cat me-1"></i>Cats
+                    <i class="fas fa-box-archive me-1"></i>Packages
                 </a>
                 <a class="nav-link me-3" href="/addresses" style="color: #F3F3F3;">
                     <i class="fas fa-home me-1"></i>Addresses
@@ -270,7 +270,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addCatModalLabel">
-                        <i class="fas fa-cat me-2"></i>Add New Cat
+                        <i class="fas fa-box-archive me-2"></i>Add New Cat
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -599,21 +599,21 @@
                 if (shipment.cat && typeof shipment.cat === 'object' && shipment.cat.name) {
                     catInfo = `
                         <div class="mb-2">
-                            <strong><i class="fas fa-cat me-1 text-primary"></i>Cat:</strong><br>
+                            <strong><i class="fas fa-box-archive me-1 text-primary"></i>Cat:</strong><br>
                             <span class="ms-3">${shipment.cat.name} (${shipment.cat.type || 'Unknown'})</span>
                         </div>
                     `;
                 } else if (shipment._links?.cat?.href) {
                     catInfo = `
                         <div class="mb-2">
-                            <strong><i class="fas fa-cat me-1 text-warning"></i>Cat:</strong><br>
+                            <strong><i class="fas fa-box-archive me-1 text-warning"></i>Cat:</strong><br>
                             <span class="ms-3 text-muted">Cat assigned but details not loaded</span>
                         </div>
                     `;
                 } else {
                     catInfo = `
                         <div class="mb-2">
-                            <strong><i class="fas fa-cat me-1 text-muted"></i>Cat:</strong><br>
+                            <strong><i class="fas fa-box-archive me-1 text-muted"></i>Cat:</strong><br>
                             <span class="ms-3 text-muted">No cat assigned</span>
                         </div>
                     `;

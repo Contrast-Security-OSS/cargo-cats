@@ -1,6 +1,6 @@
-# Cargo Cats 🐱📦
+# Navisecure 📦
 
-Cargo Cats is a multi-language microservice application designed as a purposefully vulnerable demo application for security testing and education. It simulates a shipping/logistics platform with various intentional security vulnerabilities. All services are automatically instrumented using the Contrast Security Flex Agent via agent-operator for runtime application security monitoring.
+Navisecure is a multi-language microservice application designed as a purposefully vulnerable demo application for security testing and education. It simulates a shipping/logistics platform with various intentional security vulnerabilities. All services are automatically instrumented using the Contrast Security Flex Agent via agent-operator for runtime application security monitoring.
 
 A dedicated simulation console provides a centralized interface for controlling traffic patterns, including normal user behavior, attack simulations, and exploit scenarios. This allows you to generate realistic traffic and security events to demonstrate how different security tools detect and respond to threats.
 
@@ -61,7 +61,7 @@ This documentation covers:
 
 ## Prerequisites
 
-Before you can deploy Cargo Cats, ensure you have the following installed:
+Before you can deploy Navisecure, ensure you have the following installed:
 
 1. **Docker Desktop** with Kubernetes enabled
    - Install Docker Desktop
@@ -128,7 +128,7 @@ This command will:
 
 After deployment completes (may take a few minutes), you can access:
 
-- **Vulnerable Application**: http://cargocats.localhost
+- **Vulnerable Application**: http://app.localhost
   - Username: `admin`
   - Password: `password123`
 

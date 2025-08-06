@@ -6,6 +6,16 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
+  - host: app.localhost
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.frontgateservice.name }}
+            port:
+              number: 8081
   - host: cargocats.localhost
     http:
       paths:
