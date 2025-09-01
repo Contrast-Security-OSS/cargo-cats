@@ -1,3 +1,47 @@
+# ---------------------------------------------
+# ServiceAccount
+# ---------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-pod-monitor
+  namespace: {{ .Release.Namespace | default "default" }}
+
+---
+# ---------------------------------------------
+# RBAC - Role
+# ---------------------------------------------
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-pod-monitor-role
+  namespace: {{ .Release.Namespace | default "default" }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ---------------------------------------------
+# RBAC - RoleBinding
+# ---------------------------------------------
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-pod-monitor-binding
+  namespace: {{ .Release.Namespace | default "default" }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-pod-monitor
+roleRef:
+  kind: Role
+  name: {{ .Release.Name }}-pod-monitor-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ---------------------------------------------
+# Deployment
+# ---------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,6 +59,7 @@ spec:
       labels:
         app: {{ .Values.consoleui.name }}
     spec:
+      serviceAccountName: {{ .Release.Name }}-pod-monitor
 {{- if .Values.aliashost }}
       hostAliases:
 {{- range $host, $ip := .Values.aliashost }}
@@ -39,6 +84,10 @@ spec:
               value: {{ .Values.consoleui.contrastApiKey | default "" | quote }}
             - name: CONTRAST__API__AUTHORIZATION
               value: {{ .Values.consoleui.contrastApiAuthorization | default "" | quote }}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           resources:
             requests:
               memory: "256Mi"
@@ -49,6 +98,9 @@ spec:
               cpu: "500m"
               ephemeral-storage: "2Gi"
 ---
+# ---------------------------------------------
+# Service
+# ---------------------------------------------
 apiVersion: v1
 kind: Service
 metadata:

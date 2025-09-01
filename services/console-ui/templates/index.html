@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulation Console</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎛️</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎛️</text></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
         body {
             font-family: 'Poppins', sans-serif;
@@ -16,12 +19,14 @@
             background-color: #F3F3F3;
             color: #181818;
         }
+
         .container {
             background-color: white;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(28, 35, 67, 0.1);
         }
+
         .card {
             background-color: white;
             border-radius: 10px;
@@ -29,6 +34,7 @@
             padding: 20px;
             margin-bottom: 20px;
         }
+
         .card h2 {
             color: #1C2343;
             margin-top: 0;
@@ -37,6 +43,7 @@
             padding-bottom: 10px;
             font-weight: 600;
         }
+
         .card-header {
             display: flex;
             justify-content: space-between;
@@ -45,11 +52,13 @@
             flex-wrap: wrap;
             gap: 15px;
         }
+
         .card-header h2 {
             margin: 0;
             border-bottom: none;
             padding-bottom: 0;
         }
+
         .card-description {
             margin-bottom: 15px;
             padding: 12px 15px;
@@ -57,18 +66,21 @@
             border-left: 3px solid #38B885;
             border-radius: 5px;
         }
+
         .card-description p {
             margin: 0;
             color: #555;
             font-size: 14px;
             line-height: 1.5;
         }
+
         .header-controls {
             display: flex;
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
         }
+
         .status-inline {
             padding: 12px 24px !important;
             border-radius: 5px;
@@ -86,21 +98,25 @@
             border: none !important;
             line-height: normal;
         }
+
         .connection-info {
             display: flex;
             flex-wrap: wrap;
             gap: 30px;
         }
+
         .connection-item {
             flex: 1;
             min-width: 250px;
         }
+
         .connection-item h3 {
             color: #1C2343;
             margin-bottom: 10px;
             font-size: 16px;
             font-weight: 600;
         }
+
         .connection-item p {
             margin: 5px 0;
             font-family: 'Poppins', sans-serif;
@@ -110,24 +126,30 @@
             border-left: 3px solid #38B885;
             font-size: 14px;
         }
+
         .connection-item p .label {
             font-weight: 600;
             color: #1C2343;
             margin-right: 8px;
         }
+
         .connection-item p .value {
             color: #181818;
             font-weight: normal;
         }
+
         .connection-item .url {
             border-left-color: #38B885;
         }
+
         .connection-item .username {
             border-left-color: #005A70;
         }
+
         .connection-item .password {
             border-left-color: #083C5A;
         }
+
         .connection-item .btn-link {
             background-color: #38B885;
             color: white;
@@ -142,9 +164,11 @@
             transition: background-color 0.3s;
             margin: 5px 0;
         }
+
         .connection-item .btn-link:hover {
             background-color: #005A70;
         }
+
         .copy-btn {
             background-color: transparent;
             color: #005A70;
@@ -157,27 +181,32 @@
             opacity: 0.8;
             transition: all 0.3s;
         }
+
         .copy-btn:hover {
             opacity: 1;
             background-color: #38B885;
             color: white;
             border-color: #38B885;
         }
+
         .copy-btn:active {
             background-color: #005A70;
             transform: scale(0.95);
         }
+
         .credential-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
+
         h1 {
             color: #1C2343;
             text-align: center;
             margin-bottom: 30px;
             font-weight: 700;
         }
+
         .header-container {
             position: relative;
             display: flex;
@@ -185,10 +214,12 @@
             justify-content: center;
             margin-bottom: 30px;
         }
+
         .header-container h1 {
             margin: 0;
             margin-bottom: 0;
         }
+
         .delete-icon-btn {
             position: absolute;
             right: 0;
@@ -205,16 +236,19 @@
             box-shadow: 0 2px 8px rgba(156, 163, 175, 0.2);
             opacity: 0.6;
         }
+
         .delete-icon-btn:hover {
             background-color: rgba(108, 117, 125, 0.6);
             color: rgba(255, 255, 255, 0.9);
             transform: translateY(-50%) scale(1.05);
             opacity: 0.8;
         }
+
         .delete-icon-btn:active {
             transform: translateY(-50%) scale(0.95);
             opacity: 1;
         }
+
         .controls {
             display: flex;
             gap: 10px;
@@ -222,6 +256,7 @@
             flex-wrap: wrap;
             align-items: center;
         }
+
         .controls-section {
             display: flex;
             flex-wrap: wrap;
@@ -229,12 +264,14 @@
             align-items: center;
             margin-bottom: 20px;
         }
+
         .controls-buttons {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
             align-items: center;
         }
+
         button {
             padding: 12px 24px;
             border: none;
@@ -250,48 +287,59 @@
             justify-content: center;
             box-sizing: border-box;
         }
+
         .btn-start {
             background-color: #38B885;
             color: white;
         }
+
         .btn-start:hover:not(:disabled) {
             background-color: #005A70;
             transform: translateY(-2px);
         }
+
         .btn-start:disabled {
             opacity: 0.65;
             cursor: not-allowed;
             pointer-events: none;
         }
+
         .btn-stop {
             background-color: #DD6E1E;
             color: white;
         }
+
         .btn-stop:hover:not(:disabled) {
             background-color: #083C5A;
             transform: translateY(-2px);
         }
+
         .btn-stop:disabled {
             opacity: 0.65;
             cursor: not-allowed;
             pointer-events: none;
         }
+
         .btn-refresh {
             background-color: #005A70;
             color: white;
         }
+
         .btn-refresh:hover {
             background-color: #083C5A;
             transform: translateY(-2px);
         }
+
         .btn-clear {
             background-color: #1C2343;
             color: white;
         }
+
         .btn-clear:hover {
             background-color: #181818;
             transform: translateY(-2px);
         }
+
         .btn-individual-exploit {
             background-color: #005A70;
             color: white;
@@ -305,15 +353,18 @@
             transition: all 0.3s ease;
             min-width: 120px;
         }
+
         .btn-individual-exploit:hover {
             background-color: #083C5A;
             transform: translateY(-2px);
         }
+
         .btn-individual-exploit:disabled {
             opacity: 0.65;
             cursor: not-allowed;
             pointer-events: none;
         }
+
         .individual-exploits {
             border: 1px solid #e0e0e0;
             border-radius: 8px;
@@ -321,26 +372,31 @@
             margin-bottom: 20px;
             background-color: #f8f9fa;
         }
+
         .individual-exploits-header {
             margin-bottom: 15px;
         }
+
         .individual-exploits-header h3 {
             margin: 0 0 5px 0;
             color: #1C2343;
             font-size: 16px;
             font-weight: 600;
         }
+
         .individual-exploits-header p {
             margin: 0;
             color: #666;
             font-size: 13px;
         }
+
         .individual-exploits-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 8px;
             align-items: center;
         }
+
         .targeted-link {
             font-size: 12px;
             color: #007bff;
@@ -351,44 +407,53 @@
             user-select: none;
             display: inline-block;
         }
+
         .targeted-link:hover {
             color: #0056b3;
             text-decoration: underline;
         }
+
         .targeted-link span {
             display: inline-block;
         }
+
         #targetedArrow {
             margin-left: 4px;
             font-size: 10px;
             transition: transform 0.2s ease;
         }
+
         .status {
             margin-bottom: 20px;
             padding: 15px;
             border-radius: 5px;
             font-weight: 600;
         }
+
         .status.idle {
             background-color: rgba(56, 184, 133, 0.1);
             color: #005A70;
             border: 1px solid #38B885;
         }
+
         .status.running {
             background-color: rgba(255, 218, 54, 0.1);
             color: #DD6E1E;
             border: 1px solid #FFDA36;
         }
+
         .status.finished {
             background-color: rgba(56, 184, 133, 0.1);
             color: #005A70;
             border: 1px solid #38B885;
         }
+
         .status.error {
             background-color: rgba(221, 110, 30, 0.1);
             color: #DD6E1E;
             border: 1px solid #DD6E1E;
         }
+
         .logs {
             background-color: #F3F3F3;
             border: 1px solid #38B885;
@@ -399,11 +464,14 @@
             font-family: 'Poppins', monospace;
             color: #181818;
             white-space: pre-wrap;
-            display: none; /* Start collapsed */
+            display: none;
+            /* Start collapsed */
         }
+
         .logs.expanded {
             display: block;
         }
+
         .logs-header {
             background-color: #38B885;
             border: 1px solid #38B885;
@@ -418,36 +486,45 @@
             margin-bottom: 10px;
             transition: all 0.3s;
         }
+
         .logs-header:hover {
             background-color: #005A70;
             border-color: #005A70;
         }
+
         .logs-header .toggle-icon {
             font-size: 16px;
             transition: transform 0.3s;
         }
+
         .logs-header.expanded .toggle-icon {
             transform: rotate(180deg);
         }
+
         .log-entry {
             margin-bottom: 5px;
             padding: 2px 0;
         }
+
         .log-entry.error {
             color: #dc3545;
         }
+
         .log-entry.warning {
             color: #fd7e14;
         }
+
         .log-entry.info {
             color: #333;
         }
+
         .auto-refresh {
             display: flex;
             align-items: center;
             gap: 10px;
             min-height: 48px;
         }
+
         .status-compact {
             padding: 12px 24px;
             border-radius: 5px;
@@ -460,6 +537,7 @@
             align-items: center;
             box-sizing: border-box;
         }
+
         .loading {
             display: inline-block;
             width: 20px;
@@ -469,6 +547,7 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
+
         .loading-container {
             display: inline-flex;
             align-items: center;
@@ -477,11 +556,17 @@
             height: 26px;
             flex-shrink: 0;
         }
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -494,7 +579,7 @@
             background-color: rgba(0, 0, 0, 0.5);
             animation: fadeIn 0.3s;
         }
-        
+
         .modal-content {
             background-color: white;
             margin: 5% auto;
@@ -506,7 +591,7 @@
             position: relative;
             animation: slideIn 0.3s;
         }
-        
+
         .modal-header {
             display: flex;
             align-items: center;
@@ -515,7 +600,7 @@
             border-bottom: 2px solid #38B885;
             padding-bottom: 15px;
         }
-        
+
         .modal-header h2 {
             color: #1C2343;
             margin: 0;
@@ -524,7 +609,7 @@
             align-items: center;
             gap: 10px;
         }
-        
+
         .close {
             color: #999;
             font-size: 28px;
@@ -532,11 +617,11 @@
             cursor: pointer;
             transition: color 0.3s;
         }
-        
+
         .close:hover {
             color: #1C2343;
         }
-        
+
         .modal-option {
             background-color: #f8f9fa;
             border: 1px solid #e9ecef;
@@ -546,14 +631,14 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-        
+
         .modal-option:hover {
             background-color: #38B885;
             color: white;
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(56, 184, 133, 0.3);
         }
-        
+
         .modal-option h4 {
             margin: 0 0 8px 0;
             font-weight: 600;
@@ -561,31 +646,31 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .modal-option p {
             margin: 0;
             font-size: 14px;
             opacity: 0.8;
         }
-        
+
         .modal-form {
             background-color: white;
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .form-group {
             margin-bottom: 15px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 5px;
             font-weight: 600;
             color: #1C2343;
         }
-        
+
         .form-group input {
             width: 100%;
             padding: 12px;
@@ -595,20 +680,20 @@
             box-sizing: border-box;
             transition: border-color 0.3s;
         }
-        
+
         .form-group input:focus {
             outline: none;
             border-color: #38B885;
             box-shadow: 0 0 0 2px rgba(56, 184, 133, 0.2);
         }
-        
+
         .form-buttons {
             display: flex;
             gap: 10px;
             justify-content: flex-end;
             margin-top: 20px;
         }
-        
+
         .btn-secondary {
             background-color: #6c757d;
             color: white;
@@ -619,11 +704,11 @@
             font-size: 14px;
             transition: background-color 0.3s;
         }
-        
+
         .btn-secondary:hover {
             background-color: #5a6268;
         }
-        
+
         .btn-danger {
             background-color: #dc3545;
             color: white;
@@ -635,36 +720,43 @@
             font-weight: 600;
             transition: background-color 0.3s;
         }
-        
+
         .btn-danger:hover {
             background-color: #c82333;
         }
-        
+
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
-        
+
         @keyframes slideIn {
-            from { 
+            from {
                 opacity: 0;
                 transform: translateY(-30px);
             }
-            to { 
+
+            to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-        
+
         .hidden {
             display: none;
         }
-        
+
         @keyframes slideIn {
             from {
                 opacity: 0;
                 transform: translateX(100%);
             }
+
             to {
                 opacity: 1;
                 transform: translateX(0);
@@ -672,17 +764,19 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header-container">
             <h1>🎛️ Simulation Console</h1>
-            {% if contrast_url and ('staging' in contrast_url or 'eval' in contrast_url or 'scantest' in contrast_url) %}
+            {% if contrast_url and ('staging' in contrast_url or 'eval' in contrast_url or 'scantest' in contrast_url)
+            %}
             <button class="delete-icon-btn" onclick="openDeleteModal()" title="Delete Options">
                 <i class="bi bi-trash3"></i>
             </button>
             {% endif %}
         </div>
-        
+
         <div class="card">
             <div class="connection-info">
                 <div class="connection-item">
@@ -693,8 +787,10 @@
                         <button class="copy-btn" onclick="copyToClipboard('admin')"><i class="bi bi-copy"></i></button>
                     </div>
                     <div class="credential-row">
-                        <p class="password"><span class="label">Password:</span> <span class="value">password123</span></p>
-                        <button class="copy-btn" onclick="copyToClipboard('password123')"><i class="bi bi-copy"></i></button>
+                        <p class="password"><span class="label">Password:</span> <span class="value">password123</span>
+                        </p>
+                        <button class="copy-btn" onclick="copyToClipboard('password123')"><i
+                                class="bi bi-copy"></i></button>
                     </div>
                 </div>
                 <div class="connection-item">
@@ -705,8 +801,10 @@
                         <button class="copy-btn" onclick="copyToClipboard('admin')"><i class="bi bi-copy"></i></button>
                     </div>
                     <div class="credential-row">
-                        <p class="password"><span class="label">Password:</span> <span class="value">Contrast@123!</span></p>
-                        <button class="copy-btn" onclick="copyToClipboard('Contrast@123!')"><i class="bi bi-copy"></i></button>
+                        <p class="password"><span class="label">Password:</span> <span
+                                class="value">Contrast@123!</span></p>
+                        <button class="copy-btn" onclick="copyToClipboard('Contrast@123!')"><i
+                                class="bi bi-copy"></i></button>
                     </div>
                 </div>
                 <div class="connection-item">
@@ -714,23 +812,29 @@
                     {% if contrast_url %}
                     <a href="{{ contrast_url }}" target="_blank" class="btn-link">🔍 Contrast Security</a>
                     {% if contrast_org_id %}
-                    <p class="url"><span class="label">Org ID:</span> <span class="value">{{ contrast_org_id }}</span></p>
+                    <p class="url"><span class="label">Org ID:</span> <span class="value">{{ contrast_org_id }}</span>
+                    </p>
                     {% endif %}
                     {% if contrast_uniq_name %}
-                    <p class="url"><span class="label">Unique Name:</span> <span class="value">{{ contrast_uniq_name }}</span></p>
+                    <p class="url"><span class="label">Unique Name:</span> <span class="value">{{ contrast_uniq_name
+                            }}</span></p>
                     {% endif %}
                     {% else %}
-                    <a href="#" target="_blank" class="btn-link" style="background-color: #6c757d; cursor: not-allowed;">🔍 Contrast Security (URL not available)</a>
+                    <a href="#" target="_blank" class="btn-link"
+                        style="background-color: #6c757d; cursor: not-allowed;">🔍 Contrast Security (URL not
+                        available)</a>
                     {% endif %}
                 </div>
                 <div class="connection-item">
                     <h3>Documentation</h3>
-                    <a href="https://github.com/Contrast-Security-Inc/cargo-cats/blob/main/README.md" target="_blank" class="btn-link">📖 README</a>
-                    <a href="https://github.com/Contrast-Security-Inc/cargo-cats/blob/main/vulnerabilities.md" target="_blank" class="btn-link">🔍 Vulnerabilities</a>
+                    <a href="https://github.com/Contrast-Security-Inc/cargo-cats/blob/main/README.md" target="_blank"
+                        class="btn-link">📖 README</a>
+                    <a href="https://github.com/Contrast-Security-Inc/cargo-cats/blob/main/vulnerabilities.md"
+                        target="_blank" class="btn-link">🔍 Vulnerabilities</a>
                 </div>
             </div>
         </div>
-        
+
         <div class="card">
             <div class="card-header">
                 <h2>🚦 Traffic</h2>
@@ -747,22 +851,25 @@
                 </div>
             </div>
             <div class="card-description">
-                <p>Generates benign traffic to simulate normal application usage. This creates realistic user interactions including page navigation, form submissions, and API calls to establish a baseline of legitimate activity.</p>
+                <p>Generates benign traffic to simulate normal application usage. This creates realistic user
+                    interactions including page navigation, form submissions, and API calls to establish a baseline of
+                    legitimate activity.</p>
             </div>
-            
+
             <div id="trafficLogs" class="logs">
                 No traffic logs available. Start traffic generation to see output.
             </div>
-            
+
             <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-                <button id="clearTrafficLogsBtn" class="btn-clear" onclick="clearTrafficLogs()" style="display: none;">Clear Logs</button>
+                <button id="clearTrafficLogsBtn" class="btn-clear" onclick="clearTrafficLogs()"
+                    style="display: none;">Clear Logs</button>
                 <div class="form-check form-switch" id="trafficAutoscrollContainer" style="display: none;">
                     <input class="form-check-input" type="checkbox" id="trafficAutoscrollToggle" checked>
                     <label class="form-check-label" for="trafficAutoscrollToggle">Autoscroll</label>
                 </div>
             </div>
         </div>
-        
+
         <div class="card">
             <div class="card-header">
                 <h2>⚔️ Ineffective Exploits</h2>
@@ -779,22 +886,24 @@
                 </div>
             </div>
             <div class="card-description">
-                <p>Simulates a noisy attacker using a headless ZAP instance to crawl and fuzz the application. Sends numerous ineffective exploit attempts and reconnaissance requests.</p>
+                <p>Simulates a noisy attacker using a headless ZAP instance to crawl and fuzz the application. Sends
+                    numerous ineffective exploit attempts and reconnaissance requests.</p>
             </div>
-            
+
             <div id="logs" class="logs">
                 No logs available. Start a scan to see output.
             </div>
-            
+
             <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-                <button id="clearLogsBtn" class="btn-clear" onclick="clearLogs()" style="display: none;">Clear Logs</button>
+                <button id="clearLogsBtn" class="btn-clear" onclick="clearLogs()" style="display: none;">Clear
+                    Logs</button>
                 <div class="form-check form-switch" id="attackAutoscrollContainer" style="display: none;">
                     <input class="form-check-input" type="checkbox" id="attackAutoscrollToggle" checked>
                     <label class="form-check-label" for="attackAutoscrollToggle">Autoscroll</label>
                 </div>
             </div>
         </div>
-        
+
         <div class="card">
             <div class="card-header">
                 <h2>🔥 Effective Exploits</h2>
@@ -811,41 +920,50 @@
                 </div>
             </div>
             <div class="card-description">
-                <p>Executes effective exploits against known vulnerabilities in the application. Runs the full exploit chain by default, or use the "Targeted" option below to run individual exploits for specific vulnerability types.</p>
+                <p>Executes effective exploits against known vulnerabilities in the application. Runs the full exploit
+                    chain by default, or use the "Targeted" option below to run individual exploits for specific
+                    vulnerability types.</p>
             </div>
             <div class="targeted-link" onclick="toggleIndividualExploits()">
                 <span id="targetedText">Targeted</span> <span id="targetedArrow">▶</span>
             </div>
-            
+
             <div id="individualExploits" class="individual-exploits" style="display: none;">
                 <div style="margin-bottom: 12px; font-size: 12px; color: #666; font-style: italic;">
                     Note: the individual exploit output goes to the same log as the full run.
                 </div>
                 <div class="individual-exploits-grid">
                     <button class="btn-individual-exploit" onclick="runIndividualExploit('xss')">XSS</button>
-                    <button class="btn-individual-exploit" onclick="runIndividualExploit('command-injection')">Command Injection</button>
-                    <button class="btn-individual-exploit" onclick="runIndividualExploit('path-traversal')">Path Traversal</button>
-                    <button class="btn-individual-exploit" onclick="runIndividualExploit('sql-injection')">SQL Injection</button>
-                    <button class="btn-individual-exploit" onclick="runIndividualExploit('log4shell')">Log4Shell</button>
-                    <button class="btn-individual-exploit" onclick="runIndividualExploit('ssjs-injection')">SSJS Injection</button>
+                    <button class="btn-individual-exploit" onclick="runIndividualExploit('command-injection')">Command
+                        Injection</button>
+                    <button class="btn-individual-exploit" onclick="runIndividualExploit('path-traversal')">Path
+                        Traversal</button>
+                    <button class="btn-individual-exploit" onclick="runIndividualExploit('sql-injection')">SQL
+                        Injection</button>
+                    <button class="btn-individual-exploit"
+                        onclick="runIndividualExploit('log4shell')">Log4Shell</button>
+                    <button class="btn-individual-exploit" onclick="runIndividualExploit('ssjs-injection')">SSJS
+                        Injection</button>
                     <button class="btn-individual-exploit" onclick="runIndividualExploit('xxe')">XXE</button>
-                    <button class="btn-individual-exploit" onclick="runIndividualExploit('deserialization')">Untrusted Deserialization</button>
+                    <button class="btn-individual-exploit" onclick="runIndividualExploit('deserialization')">Untrusted
+                        Deserialization</button>
                 </div>
             </div>
-            
+
             <div id="exploitLogs" class="logs">
                 No exploit logs available. Start exploit to see output.
             </div>
-            
+
             <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-                <button id="clearExploitLogsBtn" class="btn-clear" onclick="clearExploitLogs()" style="display: none;">Clear Logs</button>
+                <button id="clearExploitLogsBtn" class="btn-clear" onclick="clearExploitLogs()"
+                    style="display: none;">Clear Logs</button>
                 <div class="form-check form-switch" id="exploitAutoscrollContainer" style="display: none;">
                     <input class="form-check-input" type="checkbox" id="exploitAutoscrollToggle" checked>
                     <label class="form-check-label" for="exploitAutoscrollToggle">Autoscroll</label>
                 </div>
             </div>
         </div>
-        
+
         <!-- Delete Modal -->
         <div id="deleteModal" class="modal">
             <div class="modal-content">
@@ -853,61 +971,66 @@
                     <h2>Delete Options</h2>
                     <span class="close" onclick="closeDeleteModal()">&times;</span>
                 </div>
-                
+
                 <!-- Main Options -->
                 <div id="deleteOptions">
                     <div class="modal-option" onclick="showDeleteIncidentOption()">
                         <h4><i class="bi bi-trash3-fill"></i> Delete Specific Incident</h4>
                         <p>Remove a specific incident by ID</p>
                     </div>
-                    
+
                     <div class="modal-option" onclick="showDeleteIssueOption()">
                         <h4><i class="bi bi-trash3-fill"></i> Delete Specific Issue</h4>
                         <p>Remove a specific issue by ID</p>
                     </div>
-                    
+
                     <div class="modal-option" onclick="showDeleteApplicationOption()">
                         <h4><i class="bi bi-trash3-fill"></i> Delete All for Specific Application</h4>
                         <p>Remove all incidents and issues for a specific application by Application Name</p>
                     </div>
-                    
+
                     <div class="modal-option" onclick="showDeleteAllOption()">
                         <h4><i class="bi bi-trash3-fill"></i> Delete All Incidents & Issues</h4>
-                        <p>Remove all incidents and issues for applications starting with "{{ contrast_uniq_name }}-contrast-cargo-cats"</p>
+                        <p>Remove all incidents and issues for applications starting with "{{ contrast_uniq_name
+                            }}-contrast-cargo-cats"</p>
                     </div>
                 </div>
-                
+
                 <!-- Delete All Form -->
                 <div id="deleteAllForm" class="modal-form hidden">
                     <h4><i class="bi bi-trash3-fill"></i> Delete All Incidents & Issues</h4>
                     <p style="margin-bottom: 15px; color: #dc3545; font-weight: 600;">
-                        ⚠️ This action will permanently delete ALL incidents and issues for applications starting with "{{ contrast_uniq_name }}-contrast-cargo-cats". This cannot be undone.
+                        ⚠️ This action will permanently delete ALL incidents and issues for applications starting with
+                        "{{ contrast_uniq_name }}-contrast-cargo-cats". This cannot be undone.
                     </p>
                     <p style="margin-bottom: 20px; color: #6c757d; font-style: italic;">
-                        ℹ️ Note: Deletion is performed asynchronously and may take some time to complete. The cleanup process will continue in the background.
+                        ℹ️ Note: Deletion is performed asynchronously and may take some time to complete. The cleanup
+                        process will continue in the background.
                     </p>
                     <div class="form-buttons">
                         <button class="btn-secondary" onclick="showMainOptions()">Cancel</button>
                         <button class="btn-danger" onclick="deleteAll()">Delete All</button>
                     </div>
                 </div>
-                
+
                 <!-- Delete Application Form -->
                 <div id="deleteApplicationForm" class="modal-form hidden">
                     <h4><i class="bi bi-trash3-fill"></i> Delete All for Specific Application</h4>
                     <p style="margin-bottom: 15px; color: #dc3545; font-weight: 600;">
-                        ⚠️ This action will permanently delete ALL incidents and issues for the specified application. This cannot be undone.
+                        ⚠️ This action will permanently delete ALL incidents and issues for the specified application.
+                        This cannot be undone.
                     </p>
                     <div class="form-group">
                         <label for="applicationName">Application Name:</label>
-                        <input type="text" id="applicationName" placeholder="Enter application name (e.g., myapp-contrast-cargo-cats)" />
+                        <input type="text" id="applicationName"
+                            placeholder="Enter application name (e.g., myapp-contrast-cargo-cats)" />
                     </div>
                     <div class="form-buttons">
                         <button class="btn-secondary" onclick="showMainOptions()">Cancel</button>
                         <button class="btn-danger" onclick="deleteApplication()">Delete Application Data</button>
                     </div>
                 </div>
-                
+
                 <!-- Delete Specific Incident Form -->
                 <div id="deleteIncidentForm" class="modal-form hidden">
                     <h4><i class="bi bi-trash3-fill"></i> Delete Specific Incident</h4>
@@ -920,7 +1043,7 @@
                         <button class="btn-danger" onclick="deleteIncident()">Delete Incident</button>
                     </div>
                 </div>
-                
+
                 <!-- Delete Specific Issue Form -->
                 <div id="deleteIssueForm" class="modal-form hidden">
                     <h4><i class="bi bi-trash3-fill"></i> Delete Specific Issue</h4>
@@ -941,7 +1064,7 @@
         let autoRefreshInterval;
         let exploitAutoRefreshInterval;
         let trafficAutoRefreshInterval;
-        
+
         function startScan() {
             showLoading(true);
             fetch('/zap/scan/start')
@@ -957,7 +1080,7 @@
                     showLoading(false);
                 });
         }
-        
+
         function stopScan() {
             showLoading(true);
             fetch('/zap/scan/stop')
@@ -973,7 +1096,7 @@
                     showLoading(false);
                 });
         }
-        
+
         function refreshStatus() {
             showLoading(true);
             fetch('/zap/scan/status')
@@ -989,7 +1112,7 @@
                     showLoading(false);
                 });
         }
-        
+
         function refreshStatusQuiet() {
             // Auto-refresh with loading spinner - no longer causes layout jumping
             showLoading(true);
@@ -1007,7 +1130,7 @@
                     showLoading(false);
                 });
         }
-        
+
         function clearLogs() {
             showLoading(true);
             fetch('/zap/scan/clear')
@@ -1023,26 +1146,26 @@
                     showLoading(false);
                 });
         }
-        
+
         function updateStatus(data) {
             const statusDiv = document.getElementById('status');
             const isRunning = data.status === 'running';
             const scanState = data.scan_state || 'idle';
-            
-            statusDiv.className = 'status ' + (isRunning ? 'running' : 
-                                            scanState === 'finished' ? 'finished' : 
-                                            scanState === 'error' ? 'error' : 'idle') + ' status-inline';
-            
+
+            statusDiv.className = 'status ' + (isRunning ? 'running' :
+                scanState === 'finished' ? 'finished' :
+                    scanState === 'error' ? 'error' : 'idle') + ' status-inline';
+
             let statusText = isRunning ? 'Running' : 'Ready';
             if (isRunning && scanState !== 'idle') {
                 statusText += ` (${scanState})`;
             }
             statusDiv.textContent = statusText;
-            
+
             // Update button states for attack section
             const attackStartBtn = document.getElementById('attackStartBtn');
             const attackStopBtn = document.getElementById('attackStopBtn');
-            
+
             if (isRunning) {
                 attackStartBtn.disabled = true;
                 attackStopBtn.disabled = false;
@@ -1051,32 +1174,32 @@
                 attackStopBtn.disabled = true;
             }
         }
-        
+
         function updateLogs(logs) {
             const logsDiv = document.getElementById('logs');
             const autoscrollEnabled = document.getElementById('attackAutoscrollToggle').checked;
-            
+
             if (logs.length === 0) {
                 logsDiv.innerHTML = 'No logs available.';
                 return;
             }
-            
+
             logsDiv.innerHTML = logs.map(log => {
-                const logClass = log.includes('ERROR') ? 'error' : 
-                               log.includes('WARNING') ? 'warning' : 'info';
+                const logClass = log.includes('ERROR') ? 'error' :
+                    log.includes('WARNING') ? 'warning' : 'info';
                 return `<div class="log-entry ${logClass}">${escapeHtml(log)}</div>`;
             }).join('');
-            
+
             // Auto-scroll to bottom if enabled
             if (autoscrollEnabled) {
                 logsDiv.scrollTop = logsDiv.scrollHeight;
             }
         }
-        
+
         function showMessage(message, type) {
             // Log to console for debugging
             console.log(`${type.toUpperCase()}: ${message}`);
-            
+
             // Create or update a message display element
             let messageContainer = document.getElementById('messageContainer');
             if (!messageContainer) {
@@ -1091,7 +1214,7 @@
                 `;
                 document.body.appendChild(messageContainer);
             }
-            
+
             // Create the message element
             const messageElement = document.createElement('div');
             messageElement.style.cssText = `
@@ -1104,9 +1227,9 @@
                 animation: slideIn 0.3s ease;
                 cursor: pointer;
             `;
-            
+
             // Set background color based on type
-            switch(type) {
+            switch (type) {
                 case 'success':
                     messageElement.style.backgroundColor = '#38B885';
                     break;
@@ -1121,16 +1244,16 @@
                     messageElement.style.backgroundColor = '#3498db';
                     break;
             }
-            
+
             messageElement.textContent = message;
-            
+
             // Add click to dismiss
-            messageElement.onclick = function() {
+            messageElement.onclick = function () {
                 messageElement.remove();
             };
-            
+
             messageContainer.appendChild(messageElement);
-            
+
             // Auto-remove after 5 seconds
             setTimeout(() => {
                 if (messageElement.parentNode) {
@@ -1138,9 +1261,9 @@
                 }
             }, 5000);
         }
-        
+
         let loadingTimers = {};
-        
+
         function showLoading(show) {
             const loadingElement = document.getElementById('loading');
             if (show) {
@@ -1150,7 +1273,7 @@
                 const startTime = loadingTimers['loading'] || 0;
                 const elapsed = Date.now() - startTime;
                 const minDisplayTime = 500; // 500ms minimum display time
-                
+
                 if (elapsed < minDisplayTime) {
                     setTimeout(() => {
                         loadingElement.style.display = 'none';
@@ -1160,7 +1283,7 @@
                 }
             }
         }
-        
+
         function showExploitLoading(show) {
             const loadingElement = document.getElementById('loadingExploit');
             if (show) {
@@ -1170,7 +1293,7 @@
                 const startTime = loadingTimers['loadingExploit'] || 0;
                 const elapsed = Date.now() - startTime;
                 const minDisplayTime = 500; // 500ms minimum display time
-                
+
                 if (elapsed < minDisplayTime) {
                     setTimeout(() => {
                         loadingElement.style.display = 'none';
@@ -1180,7 +1303,7 @@
                 }
             }
         }
-        
+
         function showTrafficLoading(show) {
             const loadingElement = document.getElementById('loadingTraffic');
             if (show) {
@@ -1190,7 +1313,7 @@
                 const startTime = loadingTimers['loadingTraffic'] || 0;
                 const elapsed = Date.now() - startTime;
                 const minDisplayTime = 500; // 500ms minimum display time
-                
+
                 if (elapsed < minDisplayTime) {
                     setTimeout(() => {
                         loadingElement.style.display = 'none';
@@ -1200,26 +1323,26 @@
                 }
             }
         }
-        
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
         function setupAutoRefresh() {
             // Auto-refresh is now always enabled for both attack and exploit
             autoRefreshInterval = setInterval(refreshStatusQuiet, 3000);
             exploitAutoRefreshInterval = setInterval(refreshExploitStatusQuiet, 3000);
             trafficAutoRefreshInterval = setInterval(refreshTrafficStatusQuiet, 3000);
         }
-        
+
         function toggleLogs() {
             const logsDiv = document.getElementById('logs');
             const showLogsBtn = document.querySelectorAll('.card-header .btn-clear')[1]; // Second logs button (Attack)
             const clearLogsBtn = document.getElementById('clearLogsBtn');
             const autoscrollContainer = document.getElementById('attackAutoscrollContainer');
-            
+
             if (logsDiv.classList.contains('expanded')) {
                 logsDiv.classList.remove('expanded');
                 showLogsBtn.textContent = 'Logs';
@@ -1232,7 +1355,7 @@
                 autoscrollContainer.style.display = 'block';
             }
         }
-        
+
         // Exploit functions
         function startExploit() {
             showExploitLoading(true);
@@ -1248,7 +1371,7 @@
                     showExploitLoading(false);
                 });
         }
-        
+
         function stopExploit() {
             showExploitLoading(true);
             fetch('/exploit/stop')
@@ -1263,7 +1386,7 @@
                     showExploitLoading(false);
                 });
         }
-        
+
         function refreshExploitStatus() {
             showExploitLoading(true);
             fetch('/exploit/status')
@@ -1279,7 +1402,7 @@
                     showExploitLoading(false);
                 });
         }
-        
+
         function refreshExploitStatusQuiet() {
             // Auto-refresh with loading spinner
             showExploitLoading(true);
@@ -1297,7 +1420,7 @@
                     showExploitLoading(false);
                 });
         }
-        
+
         function clearExploitLogs() {
             showExploitLoading(true);
             fetch('/exploit/clear')
@@ -1312,26 +1435,26 @@
                     showExploitLoading(false);
                 });
         }
-        
+
         function updateExploitStatus(data) {
             const statusDiv = document.getElementById('exploitStatus');
             const isRunning = data.status === 'running';
             const exploitState = data.exploit_state || 'idle';
-            
-            statusDiv.className = 'status ' + (isRunning ? 'running' : 
-                                            exploitState === 'finished' ? 'finished' : 
-                                            exploitState === 'error' ? 'error' : 'idle') + ' status-inline';
-            
+
+            statusDiv.className = 'status ' + (isRunning ? 'running' :
+                exploitState === 'finished' ? 'finished' :
+                    exploitState === 'error' ? 'error' : 'idle') + ' status-inline';
+
             let statusText = isRunning ? 'Running' : 'Ready';
             if (isRunning && exploitState !== 'idle') {
                 statusText += ` (${exploitState})`;
             }
             statusDiv.textContent = statusText;
-            
+
             // Update button states for exploit section
             const exploitStartBtn = document.getElementById('exploitStartBtn');
             const exploitStopBtn = document.getElementById('exploitStopBtn');
-            
+
             if (isRunning) {
                 exploitStartBtn.disabled = true;
                 exploitStopBtn.disabled = false;
@@ -1340,34 +1463,34 @@
                 exploitStopBtn.disabled = true;
             }
         }
-        
+
         function updateExploitLogs(logs) {
             const logsDiv = document.getElementById('exploitLogs');
             const autoscrollEnabled = document.getElementById('exploitAutoscrollToggle').checked;
-            
+
             if (logs.length === 0) {
                 logsDiv.innerHTML = 'No exploit logs available.';
                 return;
             }
-            
+
             logsDiv.innerHTML = logs.map(log => {
-                const logClass = log.includes('ERROR') ? 'error' : 
-                               log.includes('WARNING') ? 'warning' : 'info';
+                const logClass = log.includes('ERROR') ? 'error' :
+                    log.includes('WARNING') ? 'warning' : 'info';
                 return `<div class="log-entry ${logClass}">${escapeHtml(log)}</div>`;
             }).join('');
-            
+
             // Auto-scroll to bottom if enabled
             if (autoscrollEnabled) {
                 logsDiv.scrollTop = logsDiv.scrollHeight;
             }
         }
-        
+
         function toggleExploitLogs() {
             const logsDiv = document.getElementById('exploitLogs');
             const showLogsBtn = document.querySelectorAll('.card-header .btn-clear')[2]; // Third logs button (Exploit)
             const clearLogsBtn = document.getElementById('clearExploitLogsBtn');
             const autoscrollContainer = document.getElementById('exploitAutoscrollContainer');
-            
+
             if (logsDiv.classList.contains('expanded')) {
                 logsDiv.classList.remove('expanded');
                 showLogsBtn.textContent = 'Logs';
@@ -1380,13 +1503,13 @@
                 autoscrollContainer.style.display = 'block';
             }
         }
-        
+
         function toggleIndividualExploits() {
             const individualExploitsDiv = document.getElementById('individualExploits');
             const targetedLink = document.querySelector('.targeted-link');
             const targetedText = document.getElementById('targetedText');
             const targetedArrow = document.getElementById('targetedArrow');
-            
+
             if (individualExploitsDiv.style.display === 'none') {
                 individualExploitsDiv.style.display = 'block';
                 targetedLink.classList.add('expanded');
@@ -1399,14 +1522,14 @@
                 targetedArrow.textContent = '▶';
             }
         }
-        
+
         function runIndividualExploit(exploitType) {
             // Disable all individual exploit buttons during execution
             const buttons = document.querySelectorAll('.btn-individual-exploit');
             buttons.forEach(btn => btn.disabled = true);
-            
+
             showExploitLoading(true);
-            
+
             fetch(`/exploit/${exploitType}`)
                 .then(response => response.json())
                 .then(data => {
@@ -1422,7 +1545,7 @@
                     buttons.forEach(btn => btn.disabled = false);
                 });
         }
-        
+
         // Traffic functions
         function startTraffic() {
             showTrafficLoading(true);
@@ -1438,7 +1561,7 @@
                     showTrafficLoading(false);
                 });
         }
-        
+
         function stopTraffic() {
             showTrafficLoading(true);
             fetch('/traffic/stop')
@@ -1453,7 +1576,7 @@
                     showTrafficLoading(false);
                 });
         }
-        
+
         function refreshTrafficStatus() {
             showTrafficLoading(true);
             fetch('/traffic/status')
@@ -1469,7 +1592,7 @@
                     showTrafficLoading(false);
                 });
         }
-        
+
         function refreshTrafficStatusQuiet() {
             // Auto-refresh with loading spinner
             showTrafficLoading(true);
@@ -1487,7 +1610,7 @@
                     showTrafficLoading(false);
                 });
         }
-        
+
         function clearTrafficLogs() {
             showTrafficLoading(true);
             fetch('/traffic/clear')
@@ -1502,26 +1625,26 @@
                     showTrafficLoading(false);
                 });
         }
-        
+
         function updateTrafficStatus(data) {
             const statusDiv = document.getElementById('trafficStatus');
             const isRunning = data.status === 'running';
             const trafficState = data.traffic_state || 'idle';
-            
-            statusDiv.className = 'status ' + (isRunning ? 'running' : 
-                                            trafficState === 'finished' ? 'finished' : 
-                                            trafficState === 'error' ? 'error' : 'idle') + ' status-inline';
-            
+
+            statusDiv.className = 'status ' + (isRunning ? 'running' :
+                trafficState === 'finished' ? 'finished' :
+                    trafficState === 'error' ? 'error' : 'idle') + ' status-inline';
+
             let statusText = isRunning ? 'Running' : 'Ready';
             if (isRunning && trafficState !== 'idle') {
                 statusText += ` (${trafficState})`;
             }
             statusDiv.textContent = statusText;
-            
+
             // Update button states for traffic section
             const trafficStartBtn = document.getElementById('trafficStartBtn');
             const trafficStopBtn = document.getElementById('trafficStopBtn');
-            
+
             if (isRunning) {
                 trafficStartBtn.disabled = true;
                 trafficStopBtn.disabled = false;
@@ -1530,28 +1653,28 @@
                 trafficStopBtn.disabled = true;
             }
         }
-        
+
         function updateTrafficLogs(logs) {
             const logsDiv = document.getElementById('trafficLogs');
             const autoscrollEnabled = document.getElementById('trafficAutoscrollToggle').checked;
-            
+
             if (logs.length === 0) {
                 logsDiv.innerHTML = 'No traffic logs available.';
                 return;
             }
-            
+
             logsDiv.innerHTML = logs.map(log => {
-                const logClass = log.includes('ERROR') ? 'error' : 
-                               log.includes('WARNING') ? 'warning' : 'info';
+                const logClass = log.includes('ERROR') ? 'error' :
+                    log.includes('WARNING') ? 'warning' : 'info';
                 return `<div class="log-entry ${logClass}">${escapeHtml(log)}</div>`;
             }).join('');
-            
+
             // Auto-scroll to bottom if enabled
             if (autoscrollEnabled) {
                 logsDiv.scrollTop = logsDiv.scrollHeight;
             }
         }
-        
+
         function copyToClipboard(text) {
             if (navigator.clipboard && window.isSecureContext) {
                 // Use the modern clipboard API
@@ -1571,7 +1694,7 @@
                 document.body.appendChild(textArea);
                 textArea.focus();
                 textArea.select();
-                
+
                 try {
                     document.execCommand('copy');
                     showMessage(`Copied "${text}" to clipboard`, 'info');
@@ -1579,17 +1702,17 @@
                     showMessage('Failed to copy to clipboard', 'error');
                     console.error('Copy failed:', err);
                 }
-                
+
                 document.body.removeChild(textArea);
             }
         }
-        
+
         // Modal Functions
         function openDeleteModal() {
             document.getElementById('deleteModal').style.display = 'block';
             showMainOptions();
         }
-        
+
         function closeDeleteModal() {
             document.getElementById('deleteModal').style.display = 'none';
             // Clear form inputs
@@ -1597,7 +1720,7 @@
             document.getElementById('issueId').value = '';
             document.getElementById('applicationName').value = '';
         }
-        
+
         function showMainOptions() {
             // Hide all forms
             document.getElementById('deleteAllForm').classList.add('hidden');
@@ -1607,14 +1730,14 @@
             // Show main options
             document.getElementById('deleteOptions').classList.remove('hidden');
         }
-        
+
         function showDeleteAllOption() {
             // Hide main options
             document.getElementById('deleteOptions').classList.add('hidden');
             // Show delete all form
             document.getElementById('deleteAllForm').classList.remove('hidden');
         }
-        
+
         function showDeleteApplicationOption() {
             // Hide main options
             document.getElementById('deleteOptions').classList.add('hidden');
@@ -1623,7 +1746,7 @@
             // Focus on input
             setTimeout(() => document.getElementById('applicationName').focus(), 100);
         }
-        
+
         function showDeleteIncidentOption() {
             // Hide main options
             document.getElementById('deleteOptions').classList.add('hidden');
@@ -1632,7 +1755,7 @@
             // Focus on input
             setTimeout(() => document.getElementById('incidentId').focus(), 100);
         }
-        
+
         function showDeleteIssueOption() {
             // Hide main options
             document.getElementById('deleteOptions').classList.add('hidden');
@@ -1641,47 +1764,47 @@
             // Focus on input
             setTimeout(() => document.getElementById('issueId').focus(), 100);
         }
-        
+
         function deleteAll() {
             // Show loading state
             showMessage('Deleting all incidents and issues...', 'info');
-            
+
             fetch('/delete/all', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showMessage(data.message, 'success');
-                } else {
-                    showMessage(data.message || 'Failed to delete all incidents/issues', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Network error occurred while deleting all incidents/issues', 'error');
-            })
-            .finally(() => {
-                closeDeleteModal();
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showMessage(data.message, 'success');
+                    } else {
+                        showMessage(data.message || 'Failed to delete all incidents/issues', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('Network error occurred while deleting all incidents/issues', 'error');
+                })
+                .finally(() => {
+                    closeDeleteModal();
+                });
         }
-        
+
         function deleteIncident() {
             console.log('deleteIncident function called');
             const incidentId = document.getElementById('incidentId').value.trim();
             console.log('Incident ID:', incidentId);
-            
+
             if (!incidentId) {
                 showMessage('Please enter an incident ID', 'error');
                 return;
             }
-            
+
             // Show loading state
             showMessage(`Deleting incident ${incidentId}...`, 'info');
-            
+
             console.log('Making fetch request to /delete/incident');
             fetch('/delete/incident', {
                 method: 'POST',
@@ -1690,39 +1813,39 @@
                 },
                 body: JSON.stringify({ incidentId: incidentId })
             })
-            .then(response => {
-                console.log('Response received:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('Response data:', data);
-                if (data.status === 'success') {
-                    showMessage(data.message, 'success');
-                } else if (data.status === 'warning') {
-                    showMessage(data.message, 'warning');
-                } else {
-                    showMessage(data.message || 'Failed to delete incident', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Network error occurred while deleting incident', 'error');
-            })
-            .finally(() => {
-                closeDeleteModal();
-            });
+                .then(response => {
+                    console.log('Response received:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    if (data.status === 'success') {
+                        showMessage(data.message, 'success');
+                    } else if (data.status === 'warning') {
+                        showMessage(data.message, 'warning');
+                    } else {
+                        showMessage(data.message || 'Failed to delete incident', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('Network error occurred while deleting incident', 'error');
+                })
+                .finally(() => {
+                    closeDeleteModal();
+                });
         }
-        
+
         function deleteIssue() {
             const issueId = document.getElementById('issueId').value.trim();
             if (!issueId) {
                 showMessage('Please enter an issue ID', 'error');
                 return;
             }
-            
+
             // Show loading state
             showMessage(`Deleting issue ${issueId}...`, 'info');
-            
+
             fetch('/delete/issue', {
                 method: 'POST',
                 headers: {
@@ -1730,35 +1853,35 @@
                 },
                 body: JSON.stringify({ issueId: issueId })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showMessage(data.message, 'success');
-                } else if (data.status === 'warning') {
-                    showMessage(data.message, 'warning');
-                } else {
-                    showMessage(data.message || 'Failed to delete issue', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Network error occurred while deleting issue', 'error');
-            })
-            .finally(() => {
-                closeDeleteModal();
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showMessage(data.message, 'success');
+                    } else if (data.status === 'warning') {
+                        showMessage(data.message, 'warning');
+                    } else {
+                        showMessage(data.message || 'Failed to delete issue', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('Network error occurred while deleting issue', 'error');
+                })
+                .finally(() => {
+                    closeDeleteModal();
+                });
         }
-        
+
         function deleteApplication() {
             const applicationName = document.getElementById('applicationName').value.trim();
             if (!applicationName) {
                 showMessage('Please enter an application name', 'error');
                 return;
             }
-            
+
             // Show loading state
             showMessage(`Deleting all incidents and issues for application '${applicationName}'...`, 'info');
-            
+
             fetch('/delete/application', {
                 method: 'POST',
                 headers: {
@@ -1766,33 +1889,33 @@
                 },
                 body: JSON.stringify({ applicationName: applicationName })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showMessage(data.message, 'success');
-                } else {
-                    showMessage(data.message || 'Failed to delete application data', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage('Network error occurred while deleting application data', 'error');
-            })
-            .finally(() => {
-                closeDeleteModal();
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showMessage(data.message, 'success');
+                    } else {
+                        showMessage(data.message || 'Failed to delete application data', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('Network error occurred while deleting application data', 'error');
+                })
+                .finally(() => {
+                    closeDeleteModal();
+                });
         }
-        
+
         // Close modal when clicking outside of it
-        window.onclick = function(event) {
+        window.onclick = function (event) {
             const modal = document.getElementById('deleteModal');
             if (event.target === modal) {
                 closeDeleteModal();
             }
         }
-        
+
         // Close modal with Escape key
-        document.addEventListener('keydown', function(event) {
+        document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 const modal = document.getElementById('deleteModal');
                 if (modal.style.display === 'block') {
@@ -1800,13 +1923,13 @@
                 }
             }
         });
-        
+
         function toggleTrafficLogs() {
             const logsDiv = document.getElementById('trafficLogs');
             const showLogsBtn = document.querySelectorAll('.card-header .btn-clear')[0]; // First logs button (Traffic)
             const clearLogsBtn = document.getElementById('clearTrafficLogsBtn');
             const autoscrollContainer = document.getElementById('trafficAutoscrollContainer');
-            
+
             if (logsDiv.classList.contains('expanded')) {
                 logsDiv.classList.remove('expanded');
                 showLogsBtn.textContent = 'Logs';
@@ -1819,25 +1942,25 @@
                 autoscrollContainer.style.display = 'block';
             }
         }
-        
+
         // Initialize
         // Handle click events on autoscroll toggles to prevent propagation to parent
         function setupAutoscrollToggleEvents() {
             const toggles = document.querySelectorAll('.form-check-input');
             toggles.forEach(toggle => {
-                toggle.addEventListener('click', function(event) {
+                toggle.addEventListener('click', function (event) {
                     // Prevent the click from bubbling up to the logs-header which would toggle the logs
                     event.stopPropagation();
                 });
             });
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Set initial button states (stop buttons disabled by default)
             document.getElementById('trafficStopBtn').disabled = true;
             document.getElementById('attackStopBtn').disabled = true;
             document.getElementById('exploitStopBtn').disabled = true;
-            
+
             refreshStatus();
             refreshExploitStatus();
             refreshTrafficStatus();
@@ -1845,5 +1968,86 @@
             setupAutoscrollToggleEvents();
         });
     </script>
+<!-- Deployment Health Table with collapsible section -->
+<div class="card">
+  <div class="card-header">
+    <h2 style="display: inline-block;">🩺 Deployment Health</h2>
+    <a href="#" onclick="toggleHealthCardVisibility(event)" id="collapseLink" style="margin-left: 15px; font-size: 0.9em;">Hide</a>
+    <button class="btn-refresh" onclick="fetchHealthStatus()" style="float: right;">Refresh</button>
+  </div>
+  <div id="healthStatusContent">
+    <div id="healthStatusTable" class="connection-info">
+      <p>Loading health data...</p>
+    </div>
+    <div style="text-align:right; margin-top:5px;">
+      <a href="#" onclick="toggleFullTable(event)" id="seeMoreLink">See more</a>
+    </div>
+  </div>
+</div>
+
+<script>
+let showAllPods = false;
+let isCollapsed = false;
+
+function toggleFullTable(event) {
+  event.preventDefault();
+  showAllPods = !showAllPods;
+  document.getElementById('seeMoreLink').innerText = showAllPods ? 'See less' : 'See more';
+  fetchHealthStatus();
+}
+
+function toggleHealthCardVisibility(event) {
+  event.preventDefault();
+  const content = document.getElementById('healthStatusContent');
+  const link = document.getElementById('collapseLink');
+
+  isCollapsed = !isCollapsed;
+  content.style.display = isCollapsed ? 'none' : 'block';
+  link.innerText = isCollapsed ? 'Show' : 'Hide';
+}
+
+function fetchHealthStatus() {
+  const container = document.getElementById('healthStatusTable');
+  container.innerHTML = '<p>Refreshing health data...</p>';
+
+  fetch('/deployment/health')
+    .then(response => response.json())
+    .then(data => {
+      if (!data.pods || data.pods.length === 0) {
+        container.innerHTML = '<p>No pods found.</p>';
+        return;
+      }
+
+      let html = '<table style="width:100%; border-collapse: collapse;">';
+      html += '<tr><th style="text-align:left; padding:4px;">Name</th><th style="text-align:left; padding:4px;">Phase</th><th style="text-align:left; padding:4px;">Status</th></tr>';
+
+      let visibleCount = 0;
+      data.pods.forEach(pod => {
+        const isReady = pod.ready;
+        if (!showAllPods && isReady) return;
+        visibleCount++;
+        const icon = isReady ? '🟢' : '🔴';
+        html += `<tr>
+                  <td style="padding:4px;">${pod.name}</td>
+                  <td style="padding:4px;">${pod.phase}</td>
+                  <td style="padding:4px;">${icon}</td>
+                 </tr>`;
+      });
+
+      if (visibleCount === 0) {
+        html += '<tr><td colspan="3" style="padding:4px;">All pods are healthy.</td></tr>';
+      }
+
+      html += '</table>';
+      container.innerHTML = html;
+    })
+    .catch(error => {
+      container.innerHTML = `<p>Error fetching health data: ${error.message}</p>`;
+    });
+}
+
+// Initial fetch on page load
+window.addEventListener('DOMContentLoaded', fetchHealthStatus);
+</script>
 </body>
 </html>

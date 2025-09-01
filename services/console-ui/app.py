@@ -13,6 +13,9 @@ import json
 import base64
 import re
 from typing import Dict, Optional
+from kubernetes import client, config
+
+
 
 ########################################
 # setup
@@ -25,6 +28,17 @@ logging.basicConfig(
     stream=sys.stdout
 )
 logger = logging.getLogger(__name__)
+
+# Load in-cluster config (only works inside Kubernetes)
+try:
+    config.load_incluster_config()
+    v1 = client.CoreV1Api()
+    k8s_namespace = os.getenv("NAMESPACE", "default")
+    logger.info(f"Kubernetes client initialized for namespace: {k8s_namespace}")
+except Exception as e:
+    logger.warning(f"Kubernetes client not initialized: {str(e)}")
+    v1 = None
+
 
 # Parse Contrast API token function
 def parse_contrast_token(token: str) -> Optional[Dict[str, str]]:
@@ -151,6 +165,42 @@ def hello_world():
                            contrast_org_id=contrast_org_id,
                            contrast_uniq_name=contrast_uniq_name)
 
+@app.route("/deployment/health")
+def health_check():
+    if not v1:
+        return jsonify({"healthy": False, "message": "Kubernetes client not initialized"}), 500
+
+    try:
+        pods = v1.list_namespaced_pod(namespace=k8s_namespace)
+        pod_statuses = []
+
+        for pod in pods.items:
+            containers = [
+                {"name": c.name, "ready": c.ready}
+                for c in (pod.status.container_statuses or [])
+            ]
+            is_ready = all(c["ready"] for c in containers)
+
+            pod_statuses.append({
+                "name": pod.metadata.name,
+                "phase": pod.status.phase,
+                "containers": containers,
+                "ready": is_ready
+            })
+
+        healthy = all(p["ready"] for p in pod_statuses)
+
+        return jsonify({
+            "healthy": healthy,
+            "pods": pod_statuses
+        }), 200 if healthy else 503
+
+    except Exception as e:
+        logger.error(f"Error fetching pod status: {str(e)}")
+        return jsonify({"healthy": False, "message": str(e)}), 500
+
+
+        
 @app.route('/zap/health')
 def check_zap_health():
     global zap_url
