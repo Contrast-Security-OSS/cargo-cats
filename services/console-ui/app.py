@@ -175,17 +175,13 @@ def health_check():
         pod_statuses = []
 
         for pod in pods.items:
-            containers = [
-                {"name": c.name, "ready": c.ready}
-                for c in (pod.status.container_statuses or [])
-            ]
-            is_ready = all(c["ready"] for c in containers)
+            containers = pod.status.container_statuses or []
+            is_ready = all(c.ready for c in containers)
 
             pod_statuses.append({
                 "name": pod.metadata.name,
                 "phase": pod.status.phase,
-                "containers": containers,
-                "ready": is_ready
+                "ready": is_ready 
             })
 
         healthy = all(p["ready"] for p in pod_statuses)
@@ -196,11 +192,9 @@ def health_check():
         }), 200 if healthy else 503
 
     except Exception as e:
-        logger.error(f"Error fetching pod status: {str(e)}")
         return jsonify({"healthy": False, "message": str(e)}), 500
 
 
-        
 @app.route('/zap/health')
 def check_zap_health():
     global zap_url
