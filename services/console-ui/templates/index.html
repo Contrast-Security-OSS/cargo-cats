@@ -1845,5 +1845,87 @@
             setupAutoscrollToggleEvents();
         });
     </script>
+
+    <!-- Deployment Health Table with collapsible section -->
+<div class="card">
+  <div class="card-header">
+    <h2 style="display: inline-block;">🩺 Deployment Health</h2>
+    <a href="#" onclick="toggleHealthCardVisibility(event)" id="collapseLink" style="margin-left: 15px; font-size: 0.9em;">Hide</a>
+    <button class="btn-refresh" onclick="fetchHealthStatus()" style="float: right;">Refresh</button>
+  </div>
+  <div id="healthStatusContent">
+    <div id="healthStatusTable" class="connection-info">
+      <p>Loading health data...</p>
+    </div>
+    <div style="text-align:right; margin-top:5px;">
+      <a href="#" onclick="toggleFullTable(event)" id="seeMoreLink">See more</a>
+    </div>
+  </div>
+</div>
+
+<script>
+let showAllPods = false;
+let isCollapsed = false;
+
+function toggleFullTable(event) {
+  event.preventDefault();
+  showAllPods = !showAllPods;
+  document.getElementById('seeMoreLink').innerText = showAllPods ? 'See less' : 'See more';
+  fetchHealthStatus();
+}
+
+function toggleHealthCardVisibility(event) {
+  event.preventDefault();
+  const content = document.getElementById('healthStatusContent');
+  const link = document.getElementById('collapseLink');
+
+  isCollapsed = !isCollapsed;
+  content.style.display = isCollapsed ? 'none' : 'block';
+  link.innerText = isCollapsed ? 'Show' : 'Hide';
+}
+
+function fetchHealthStatus() {
+  const container = document.getElementById('healthStatusTable');
+  container.innerHTML = '<p>Refreshing health data...</p>';
+
+  fetch('/deployment/health')
+    .then(response => response.json())
+    .then(data => {
+      if (!data.pods || data.pods.length === 0) {
+        container.innerHTML = '<p>No pods found.</p>';
+        return;
+      }
+
+      let html = '<table style="width:100%; border-collapse: collapse;">';
+      html += '<tr><th style="text-align:left; padding:4px;">Name</th><th style="text-align:left; padding:4px;">Phase</th><th style="text-align:left; padding:4px;">Status</th></tr>';
+
+      let visibleCount = 0;
+      data.pods.forEach(pod => {
+        const isReady = pod.ready;
+        if (!showAllPods && isReady) return;
+        visibleCount++;
+        const icon = isReady ? '🟢' : '🔴';
+        html += `<tr>
+                  <td style="padding:4px;">${pod.name}</td>
+                  <td style="padding:4px;">${pod.phase}</td>
+                  <td style="padding:4px;">${icon}</td>
+                 </tr>`;
+      });
+
+      if (visibleCount === 0) {
+        html += '<tr><td colspan="3" style="padding:4px;">All pods are healthy.</td></tr>';
+      }
+
+      html += '</table>';
+      container.innerHTML = html;
+    })
+    .catch(error => {
+      container.innerHTML = `<p>Error fetching health data: ${error.message}</p>`;
+    });
+}
+
+// Initial fetch on page load
+window.addEventListener('DOMContentLoaded', fetchHealthStatus);
+</script>
 </body>
 </html>
