@@ -60,7 +60,7 @@ data:
                 <config>{"kvps":"&amp;","kvs":"=","struct":[]}</config>
             </postparser>
             <authentication>
-                <type>6</type>
+                <type>2</type>
                 <strategy>POLL_URL</strategy>
                 <pollurl>http://cargocats.localhost/dashboard</pollurl>
                 <polldata/>
@@ -68,14 +68,14 @@ data:
                 <pollunits>REQUESTS</pollunits>
                 <loggedin>\Q 200\E</loggedin>
                 <loggedout>\Q 302\E</loggedout>
-                <browser>
-                    <loginpageurl>http://cargocats.localhost</loginpageurl>
-                    <browserid>firefox</browserid>
-                    <loginpagewait>2</loginpagewait>
-                </browser>
+                <form>
+                    <loginurl>http://cargocats.localhost/login</loginurl>
+                    <loginbody>username={%username%}&amp;password={%password%}</loginbody>
+                    <loginpageurl>http://cargocats.localhost/login</loginpageurl>
+                </form>
             </authentication>
             <users>
-                <user>0;true;YWRtaW4=;6;YWRtaW4=~cGFzc3dvcmQxMjM=~~30~6~U0hBMQ==~</user>
+                <user>0;true;YWRtaW4=;2;YWRtaW4=~cGFzc3dvcmQxMjM=~</user>
             </users>
             <forceduser>-1</forceduser>
             <session>

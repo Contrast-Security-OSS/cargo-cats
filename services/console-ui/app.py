@@ -1136,7 +1136,7 @@ def scan():
     #ajax spider default context as admin
     scan_state = "ajax_spider"
     log_scan_output("Starting ajax spider as admin")
-    r = requests.get(f"{zap_url}/JSON/ajaxSpider/action/scanAsUser/?contextName=Default&userName=admin&url=&subtreeOnly=", timeout=5)
+    r = requests.get(f"{zap_url}/JSON/ajaxSpider/action/scanAsUser/?contextName=Default&userName=admin&url=http%3A%2F%2Fcargocats.localhost%2Fdashboard&subtreeOnly=", timeout=5)
 
     spiders_done = False
     while not spiders_done and not stop_scan_flag:
