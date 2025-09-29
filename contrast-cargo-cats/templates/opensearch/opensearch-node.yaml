@@ -56,12 +56,19 @@ spec:
           name: api
         - containerPort: 9600
           name: performance
+        volumeMounts:
+        - name: opensearch-tmp
+          mountPath: /tmp
         resources:
           requests:
             memory: "1Gi"
             cpu: "500m"
-            ephemeral-storage: "2Gi"
+            ephemeral-storage: "5Gi"
           limits:
             memory: "2Gi"
             cpu: "1000m"
-            ephemeral-storage: "4Gi"
+            ephemeral-storage: "10Gi"
+      volumes:
+      - name: opensearch-tmp
+        emptyDir:
+          sizeLimit: "5Gi"
