@@ -1,2 +1,3 @@
 .env
 /contrast-cargo-cats/charts
+.k8s_env

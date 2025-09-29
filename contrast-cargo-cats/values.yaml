@@ -55,6 +55,31 @@ falco:
   falco:
     json_output: "true"
     loglevel: "debug"
+    # Reduced resource usage to prevent eviction
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+    # Add an empty dir volume mount to provide additional storage
+    extraVolumes:
+      - name: falco-cache
+        emptyDir:
+          sizeLimit: 1Gi
+    extraVolumeMounts:
+      - mountPath: /var/lib/falco
+        name: falco-cache
+  # Configure tolerations to handle disk pressure
+  tolerations:
+    - key: node.kubernetes.io/disk-pressure
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: node.kubernetes.io/disk-pressure
+      operator: "Exists"
+      effect: "NoExecute"
+      tolerationSeconds: 3600
   falcoctl:
     env:
       - name: FALCOCTL_ARTIFACT_NOVERIFY
