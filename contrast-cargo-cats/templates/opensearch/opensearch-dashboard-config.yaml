@@ -11,3 +11,4 @@ data:
     opensearch.username: admin
     opensearch.password: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
     opensearch_security.multitenancy.enabled: false
+    opensearchDashboards.index: ".kibana"

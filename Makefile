@@ -250,8 +250,13 @@ add-scc-permission-to-app-service-accounts: ensure-namespace
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-fluent-bit -n  $(NAMESPACE)
 
 opensearch-sysctl:
+ifeq ($(CONTAINER_PLATFORM),openshift)
 	@echo "Settin max_map_count for OpenSearch"
 	oc apply -f sysctl-tuner.yaml
+	oc adm policy add-scc-to-user privileged -z sysctl-tuner -n openshift-operators
+else
+	@echo "Skipping sysctl (not on OpenShift)"
+endif
 
 run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-scc-permission-to-app-service-accounts opensearch-sysctl
 	echo ""
@@ -259,7 +264,8 @@ run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-
 	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
 		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) \
-		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) --debug
+		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) \
+		--debug
 
 deploy-simulation-console: ensure-namespace create-registry-secret build-simulation-containers
 	@echo "Waiting for ingress controller to be ready..."
@@ -286,7 +292,8 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-simulat
 		--set consoleui.contrastApiToken=$(CONTRAST__AGENT__TOKEN) \
 		--set consoleui.contrastUniqName=$(CONTRAST__UNIQ__NAME) \
 		--set consoleui.contrastApiKey=$(CONTRAST__API__KEY) \
-		--set consoleui.contrastApiAuthorization=$(CONTRAST__API__AUTHORIZATION)
+		--set consoleui.contrastApiAuthorization=$(CONTRAST__API__AUTHORIZATION) \
+		--debug
 	echo ""
 	
 deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console create-secret-to-apps-sa-link create-secret-to-console-sa-link
