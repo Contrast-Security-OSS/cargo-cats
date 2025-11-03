@@ -93,6 +93,13 @@ spec:
           ports:
             - containerPort: 5000
               name: http
+          volumeMounts:
+            - name: console-ui-config
+              mountPath: /app/app.py
+              subPath: app.py
+            - name: console-ui-config
+              mountPath: /app/templates/index.html
+              subPath: index.html
           env:
             - name: CONTRAST__AGENT__TOKEN
               value: {{ .Values.consoleui.contrastApiToken | default "" | quote }}
@@ -115,6 +122,11 @@ spec:
               memory: "512Mi"
               cpu: "500m"
               ephemeral-storage: "2Gi"
+      volumes:
+        - name: console-ui-config
+          configMap:
+            name: {{ .Release.Name }}-{{ .Values.consoleui.name }}-config
+            defaultMode: 0755
 ---
 # ---------------------------------------------
 # Service
