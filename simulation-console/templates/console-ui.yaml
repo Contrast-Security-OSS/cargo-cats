@@ -49,9 +49,9 @@ metadata:
   namespace: {{ .Release.Namespace | default "default" }}
 data:
   app.py: |-
-{{ (.Files.Get "../services/console-ui/app.py" | tpl .) | indent 4 }}
+{{ tpl (.Files.Get "files/app.py") . | indent 4 }}
   index.html: |-
-{{ (.Files.Get "../services/console-ui/templates/index.html" | tpl .) | indent 4 }}
+{{ tpl (.Files.Get "files/index.html") . | indent 4 }}
 ---
 # ---------------------------------------------
 # Deployment
