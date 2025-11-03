@@ -40,6 +40,20 @@ roleRef:
 
 ---
 # ---------------------------------------------
+# ConfigMap
+# ---------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.consoleui.name }}-config
+  namespace: {{ .Release.Namespace | default "default" }}
+data:
+  app.py: |-
+{{ .Files.Get "../services/console-ui/app.py" | indent 4 }}
+  index.html: |-
+{{ .Files.Get "../services/console-ui/templates/index.html" | indent 4 | tpl . . | indent 4 }}
+---
+# ---------------------------------------------
 # Deployment
 # ---------------------------------------------
 apiVersion: apps/v1

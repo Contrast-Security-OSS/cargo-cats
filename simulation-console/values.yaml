@@ -21,6 +21,8 @@ consoleui:
   contrastUniqName: "default"
   contrastApiKey: "default-api-key"
   contrastApiAuthorization: "default-authorization"
+  vulnAppUrl: "http://cargocats.localhost"       # default for Docker Desktop
+  opensearchUrl: "http://opensearch.localhost"   # default for Docker Desktop
 
 exploitserver:
   image: "{{ .Values.imagePrefix }}exploit-server:latest"

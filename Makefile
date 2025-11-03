@@ -97,16 +97,17 @@ endif
 	echo ""
 
 setup-opensearch:
-	echo "\nSetting up OpenSearch"
-	@until curl --insecure -s -o /dev/null -w "%{http_code}" http://opensearch.localhost | grep -q "302"; do \
+	@echo "\nSetting up OpenSearch"
+	$(eval OPENSEARCH_URL := $(if $(filter OpenShift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
+	@echo "Using OpenSearch URL: $(OPENSEARCH_URL)"
+	@until curl --insecure -s -o /dev/null -w "%{http_code}" $(OPENSEARCH_URL) | grep -q "302"; do \
         echo "Waiting for OpenSearch..."; \
         sleep 5; \
     done
-
-	curl --insecure  -X POST -H "Content-Type: multipart/form-data" -H "osd-xsrf: osd-fetch" "http://opensearch.localhost/api/saved_objects/_import?overwrite=true" -u admin:Contrast@123! --form file='@contrast-cargo-cats/opesearch_savedobjects.ndjson'
-	curl --insecure  -X POST -H 'Content-Type: application/json' -H 'osd-xsrf: osd-fetch' 'http://opensearch.localhost/api/opensearch-dashboards/settings' -u admin:Contrast@123! --data-raw '{"changes":{"defaultRoute":"/app/dashboards#/"}}'
-	sleep 5;
-	echo "OpenSearch setup complete."
+	curl --insecure -X POST -H "Content-Type: multipart/form-data" -H "osd-xsrf: osd-fetch" "$(OPENSEARCH_URL)/api/saved_objects/_import?overwrite=true" -u admin:Contrast@123! --form file='@contrast-cargo-cats/opesearch_savedobjects.ndjson'
+	curl --insecure -X POST -H 'Content-Type: application/json' -H 'osd-xsrf: osd-fetch' '$(OPENSEARCH_URL)/api/opensearch-dashboards/settings' -u admin:Contrast@123! --data-raw '{"changes":{"defaultRoute":"/app/dashboards#/"}}'
+	sleep 5
+	@echo "OpenSearch setup complete."
 
 validate-env-vars:
 	@echo "Validating environment variables..."
@@ -221,7 +222,19 @@ push-simulation: \
 	push-contrastdatacollector
 	@echo "Pushed simulation containers."
 
-run-helm: build-and-push-cargo-cats ensure-namespace create-registry-secret 
+create-secret-to-apps-sa-link: create-registry-secret ensure-namespace run-helm
+ifeq ($(EXTERNAL_REGISTRY),true)
+	@echo "Linking external registry secret to SAs namespace $(NAMESPACE)..."
+	@oc secrets link default my-reg-secret --for=pull -n $(NAMESPACE)
+endif
+
+create-secret-to-apps-sa-link: create-registry-secret ensure-namespace deploy-simulation-console
+ifeq ($(EXTERNAL_REGISTRY),true)
+	@echo "Linking external registry secret to SAs namespace $(NAMESPACE)..."
+	@oc secrets link simulation-console-pod-monitor my-reg-secret --for=pull -n $(NAMESPACE)
+endif
+
+run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret 
 	echo ""
 	@echo "Deploying contrast-cargo-cats (namespace: $(NAMESPACE))"
 	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats \
@@ -237,11 +250,15 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-simulat
 	done
 	@echo "Getting ingress controller IP..."
 	$(eval INGRESS_IP := $(shell kubectl get service contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.spec.clusterIP}' 2>/dev/null))
+	$(eval VULN_APP_URL := $(if $(filter OpenShift,$(CONTAINER_PLATFORM)),http://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
+	$(eval OPENSEARCH_URL := $(if $(filter OpenShift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
 	@echo "Ingress controller IP: $(INGRESS_IP)"
 	@echo "Deploying simulation console..."
 	helm upgrade --install simulation-console ./simulation-console \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
 		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) \
+		--set consoleui.vulnAppUrl=$(VULN_APP_URL) \
+		--set consoleui.opensearchUrl=$(OPENSEARCH_URL) \
 		--set-string aliashost.cargocats\\.localhost=$(INGRESS_IP) \
 		--set contrastdatacollector.contrastUniqName=$(CONTRAST__UNIQ__NAME) \
 		--set contrastdatacollector.contrastApiToken=$(CONTRAST__AGENT__TOKEN) \

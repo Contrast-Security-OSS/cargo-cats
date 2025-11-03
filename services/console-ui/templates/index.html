@@ -687,7 +687,7 @@
             <div class="connection-info">
                 <div class="connection-item">
                     <h3>Vulnerable Application</h3>
-                    <a href="http://app.localhost" target="_blank" class="btn-link">📦 Global shipping</a>
+                    <a href="{{ .Values.consoleui.vulnAppUrl }}" target="_blank" class="btn-link">📦 Global shipping</a>
                     <div class="credential-row">
                         <p class="username"><span class="label">Username:</span> <span class="value">admin</span></p>
                         <button class="copy-btn" onclick="copyToClipboard('admin')"><i class="bi bi-copy"></i></button>
@@ -699,7 +699,7 @@
                 </div>
                 <div class="connection-item">
                     <h3>WAF/EDR Results</h3>
-                    <a href="http://opensearch.localhost" target="_blank" class="btn-link">📊 OpenSearch Dashboard</a>
+                    <a href="{{ .Values.consoleui.opensearchUrl }}" target="_blank" class="btn-link">📊 OpenSearch Dashboard</a>
                     <div class="credential-row">
                         <p class="username"><span class="label">Username:</span> <span class="value">admin</span></p>
                         <button class="copy-btn" onclick="copyToClipboard('admin')"><i class="bi bi-copy"></i></button>
