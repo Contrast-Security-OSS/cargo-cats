@@ -122,13 +122,13 @@ spec:
         - name: {{ .Values.zapproxy.name }}
           image: {{ .Values.zapproxy.image }}
           imagePullPolicy: IfNotPresent
-          command: ["zap.sh", "-daemon", "-host", "0.0.0.0", "-port", "80", "-config", "api.addrs.addr.name=.*", "-config", "api.addrs.addr.regex=true","-config", "api.disablekey=true" ]
+          command: ["zap.sh", "-daemon", "-host", "0.0.0.0", "-port", "8080", "-config", "api.addrs.addr.name=.*", "-config", "api.addrs.addr.regex=true","-config", "api.disablekey=true" ]
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
             runAsNonRoot: true
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: api
           volumeMounts:
             - name: zap-context
@@ -159,5 +159,5 @@ spec:
   ports:
     - protocol: TCP
       name: api
-      port: 80
-      targetPort: 80
+      port: 8080
+      targetPort: 8080

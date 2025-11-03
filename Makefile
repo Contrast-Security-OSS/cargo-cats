@@ -64,6 +64,17 @@ ifeq ($(EXTERNAL_REGISTRY),true)
 	echo "$(REG_API_KEY)" | $(ENGINE) login $(REGISTRY) -u "$(REG_USERNAME)" --password-stdin
 endif
 
+create-registry-secret: ensure-namespace
+ifeq ($(EXTERNAL_REGISTRY),true)
+	@echo "Creating external registry secret for OpenShift in namespace $(NAMESPACE)..."
+	@oc create secret docker-registry my-reg-secret \
+		--docker-server=$(REGISTRY) \
+		--docker-username=$(REG_USERNAME) \
+		--docker-password=$(REG_API_KEY) \
+		--docker-email=unused \
+		-n $(NAMESPACE) --dry-run=client -o yaml | oc apply -f -
+endif
+
 download-helm-dependencies:
 	@echo "Downloading Helm chart dependencies..."
 	@cd contrast-cargo-cats && helm dependency update
@@ -210,7 +221,7 @@ push-simulation: \
 	push-contrastdatacollector
 	@echo "Pushed simulation containers."
 
-run-helm: build-and-push-cargo-cats ensure-namespace
+run-helm: build-and-push-cargo-cats ensure-namespace create-registry-secret 
 	echo ""
 	@echo "Deploying contrast-cargo-cats (namespace: $(NAMESPACE))"
 	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats \
@@ -218,7 +229,7 @@ run-helm: build-and-push-cargo-cats ensure-namespace
 		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) \
 		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME)
 
-deploy-simulation-console: ensure-namespace build-simulation-containers
+deploy-simulation-console: ensure-namespace create-registry-secret build-simulation-containers
 	@echo "Waiting for ingress controller to be ready..."
 	@until kubectl get deployment contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q "1"; do \
 		echo "Waiting for ingress controller..."; \
