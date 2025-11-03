@@ -92,7 +92,7 @@ endif
 
 create-registry-secret: ensure-namespace
 ifeq ($(EXTERNAL_REGISTRY),true)
-	@echo "Creating external registry secret for OpenShift in namespace $(NAMESPACE)..."
+	@echo "Creating external registry secret in namespace $(NAMESPACE)..."
 	@oc create secret docker-registry my-reg-secret \
 		--docker-server=$(REGISTRY) \
 		--docker-username=$(REG_USERNAME) \
