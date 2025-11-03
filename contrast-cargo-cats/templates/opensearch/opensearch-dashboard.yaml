@@ -48,6 +48,7 @@ spec:
       containers:
       - image: opensearchproject/opensearch-dashboards:latest
         name: dashboard
+        imagePullPolicy: IfNotPresent
         env:
         - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
           value: {{ .Values.opensearch.initialAdminPassword }}

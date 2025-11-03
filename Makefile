@@ -121,7 +121,7 @@ endif
 
 setup-opensearch:
 	@echo "\nSetting up OpenSearch"
-	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
+	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
 	@echo "Using OpenSearch URL: $(OPENSEARCH_URL)"
 	@until curl --insecure -s -o /dev/null -w "%{http_code}" $(OPENSEARCH_URL) | grep -q "302"; do \
         echo "Waiting for OpenSearch..."; \
@@ -277,8 +277,8 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-simulat
 	done
 	@echo "Getting ingress controller IP..."
 	$(eval INGRESS_IP := $(shell kubectl get service contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.spec.clusterIP}' 2>/dev/null))
-	$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
-	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
+	$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
+	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
 	@echo "Ingress controller IP: $(INGRESS_IP)"
 	@echo "Deploying simulation console..."
 	helm upgrade --install simulation-console ./simulation-console \
@@ -300,9 +300,9 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-simulat
 	
 deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console create-secret-to-apps-sa-link create-secret-to-console-sa-link
 	$(eval contrast_url := $(shell echo "$(CONTRAST__AGENT__TOKEN)" | base64 --decode | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"\(.*\)"/\1/' | sed 's/-agents//g'))
-	$(eval CONSOLE_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://console-$(NAMESPACE).$(ROUTE_HOST),http://console.localhost))
-	$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
-	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
+	$(eval CONSOLE_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://console-$(NAMESPACE).$(ROUTE_HOST),http://console.localhost))
+	$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
+	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
 	@echo "\n\nDeployment complete!"
 	@echo "=================================================================="
 	@echo "Note: It may take a few minutes for the deployment to be fully ready."
