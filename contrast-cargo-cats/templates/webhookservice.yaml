@@ -17,10 +17,10 @@ spec:
       labels:
         app: {{ .Values.webhookservice.name }}
     spec:
-      serviceAccountName: {{ include "contrast-cargo-cats.serviceAccountName" . }}
+      serviceAccount: {{ include "contrast-cargo-cats.serviceAccountName" . }}
       containers:
         - name: {{ .Values.webhookservice.name }}
-          image: {{ .Values.webhookservice.image }} 
+          image: "{{ .Values.imagePrefix }}{{ .Values.webhookservice.image }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
           - name: CONTRAST__APPLICATION__NAME

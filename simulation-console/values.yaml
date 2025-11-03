@@ -15,7 +15,7 @@ imagePrefix: ""   # blank by default
 imagePullPolicy: Never
 
 consoleui:
-  image: "{{ .Values.imagePrefix }}console-ui:latest"
+  image: console-ui:latest
   name: console-ui
   contrastApiToken: "default-token"
   contrastUniqName: "default"
@@ -25,11 +25,11 @@ consoleui:
   opensearchUrl: "http://opensearch.localhost"   # default for Docker Desktop
 
 exploitserver:
-  image: "{{ .Values.imagePrefix }}exploit-server:latest"
+  image: exploit-server:latest
   name: exploit-server
 
 contrastdatacollector:
-  image: "{{ .Values.imagePrefix }}contrastdatacollector:latest"
+  image: contrastdatacollector:latest
   name: contrastdatacollector
   contrastUniqName: "default"
   contrastApiToken: "default-token"

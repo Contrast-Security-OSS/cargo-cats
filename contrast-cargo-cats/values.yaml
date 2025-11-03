@@ -17,27 +17,27 @@ mysql:
   password: cargocats
 
 cargocatsDataservice:
-  image: "{{ .Values.imagePrefix }}dataservice:latest"
+  image: dataservice:latest
   name: dataservice
 
 frontgateservice:
-  image: "{{ .Values.imagePrefix }}frontgateservice:latest"
+  image: frontgateservice:latest
   name: frontgateservice
 
 webhookservice:
-  image: "{{ .Values.imagePrefix }}webhookservice:latest"
+  image: webhookservice:latest
   name: webhookservice
 
 imageservice:
-  image: "{{ .Values.imagePrefix }}imageservice:latest"
+  image: imageservice:latest
   name: imageservice
 
 labelservice:
-  image: "{{ .Values.imagePrefix }}labelservice:latest"
+  image: labelservice:latest
   name: labelservice
 
 docservice:
-  image: "{{ .Values.imagePrefix }}docservice:latest
+  image: docservice:latest
   name: docservice
 
 opensearch:

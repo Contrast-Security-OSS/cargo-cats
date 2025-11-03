@@ -1,5 +1,28 @@
 .SILENT:
 
+.PHONY: \
+	# Namespace & registry setup
+	ensure-namespace registry-login create-registry-secret \
+	create-secret-to-apps-sa-link create-secret-to-console-sa-link \
+	\
+	# Build targets - Cargo Cats core
+	build-dataservice build-webhookservice build-frontgateservice build-exploit-server \
+	build-imageservice build-labelservice build-docservice \
+	build-cargo-cats-containers build-and-push-cargo-cats \
+	push-dataservice push-webhookservice push-frontgateservice push-exploit-server \
+	push-imageservice push-labelservice push-docservice push-cargo-cats \
+	\
+	# Build targets - Simulation
+	build-contrastdatacollector build-console-ui build-simulation-containers \
+	build-and-push-simulation push-contrastdatacollector push-console-ui push-simulation \
+	\
+	# Helm & deployment
+	download-helm-dependencies deploy-contrast run-helm deploy-simulation-console deploy \
+	setup-opensearch validate-env-vars \
+	\
+	# Uninstall/redeploy
+	uninstall redeploy
+
 ifneq (,$(wildcard ./.env))
     include .env
     export
@@ -26,20 +49,20 @@ ENGINE ?= docker
 # Registry Prefix Logic
 # ======================
 ifeq ($(EXTERNAL_REGISTRY),true)
-    ifeq ($(REGISTRY),)
-        $(error EXTERNAL_REGISTRY=true but REGISTRY is not set. REGISTRY must be full registry path, e.g. quay.io/myteam)
-    endif
-    IMAGE_PREFIX := $(REGISTRY)/
-	HELM_IMAGE_PREFIX := --set imagePrefix=$IMAGE_PREFIX
+ifeq ($(REGISTRY),)
+$(error EXTERNAL_REGISTRY=true but REGISTRY is not set. REGISTRY must be full registry path, e.g. quay.io/myteam)
+endif
+IMAGE_PREFIX := $(REGISTRY)/
+HELM_IMAGE_PREFIX := --set imagePrefix=$(IMAGE_PREFIX)
 else
-    IMAGE_PREFIX :=
-	HELM_IMAGE_PREFIX :=
+IMAGE_PREFIX :=
+HELM_IMAGE_PREFIX :=
 endif
 
 # ======================
 # Image Pull Logic
 # ======================
-ifeq ($(CONTAINER_PLATFORM),OpenShift)
+ifeq ($(CONTAINER_PLATFORM),openshift)
     HELM_IMAGE_PULL_POLICY := --set imagePullPolicy=IfNotPresent
 else
     HELM_IMAGE_PULL_POLICY :=
@@ -80,7 +103,7 @@ download-helm-dependencies:
 	@cd contrast-cargo-cats && helm dependency update
 	@echo "Helm chart dependencies downloaded successfully."
 
-deploy-contrast:
+deploy-contrast: ensure-namespace
 	@echo "\nDeploying Contrast Agent Operator..."
 	kubectl apply -f https://github.com/Contrast-Security-OSS/agent-operator/releases/latest/download/install-prod.yaml
 	@echo "\nSetting Contrast Agent Operator Token..."
@@ -91,14 +114,14 @@ ifeq ($(NAMESPACE),default)
 	kubectl apply -f contrast-agent-operator-config.yaml
 else
 	# Replace all 'namespace: default' with 'namespace: $(NAMESPACE)'
-	kubectl apply -f <(sed "s/namespace: default/namespace: $(NAMESPACE)/g" contrast-agent-operator-config.yaml)
+	sed "s/namespace: default/namespace: $(NAMESPACE)/g" contrast-agent-operator-config.yaml | kubectl apply -f -
 endif
 	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi"
 	echo ""
 
 setup-opensearch:
 	@echo "\nSetting up OpenSearch"
-	$(eval OPENSEARCH_URL := $(if $(filter OpenShift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
+	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
 	@echo "Using OpenSearch URL: $(OPENSEARCH_URL)"
 	@until curl --insecure -s -o /dev/null -w "%{http_code}" $(OPENSEARCH_URL) | grep -q "302"; do \
         echo "Waiting for OpenSearch..."; \
@@ -170,16 +193,6 @@ build-cargo-cats-containers: \
 	build-docservice
 	@echo "Cargo Cats core containers built."
 
-push-cargo-cats: \
-	push-dataservice \
-	push-webhookservice \
-	push-frontgateservice \
-	push-exploit-server \
-	push-imageservice \
-	push-labelservice \
-	push-docservice
-	@echo "Cargo Cats core containers pushed."
-
 build-and-push-cargo-cats: build-cargo-cats-containers registry-login
 ifeq ($(EXTERNAL_REGISTRY),true)
 	$(MAKE) push-cargo-cats
@@ -194,9 +207,6 @@ push-console-ui: ; $(call push_service,console-ui)
 build-simulation-containers: build-console-ui build-contrastdatacollector
 	@echo "Simulation containers built."
 
-push-simulation: push-console-ui push-contrastdatacollector
-	@echo "Simulation containers pushed."
-
 build-and-push-simulation: build-simulation-containers registry-login
 ifeq ($(EXTERNAL_REGISTRY),true)
 	$(MAKE) push-simulation
@@ -205,8 +215,6 @@ endif
 # ======================
 # Push targets
 # ======================
-ifeq ($(EXTERNAL_REGISTRY),true)
-
 push-cargo-cats: \
 	push-dataservice \
 	push-webhookservice \
@@ -214,7 +222,7 @@ push-cargo-cats: \
 	push-exploit-server \
 	push-imageservice \
 	push-labelservice \
-	push-docservice \
+	push-docservice
 	@echo "Pushed Cargo Cats core containers."
 
 push-simulation: \
@@ -222,25 +230,32 @@ push-simulation: \
 	push-contrastdatacollector
 	@echo "Pushed simulation containers."
 
-create-secret-to-apps-sa-link: create-registry-secret ensure-namespace run-helm
+create-secret-to-apps-sa-link: create-registry-secret run-helm
 ifeq ($(EXTERNAL_REGISTRY),true)
 	@echo "Linking external registry secret to SAs namespace $(NAMESPACE)..."
 	@oc secrets link default my-reg-secret --for=pull -n $(NAMESPACE)
 endif
 
-create-secret-to-apps-sa-link: create-registry-secret ensure-namespace deploy-simulation-console
+create-secret-to-console-sa-link: create-registry-secret deploy-simulation-console
 ifeq ($(EXTERNAL_REGISTRY),true)
 	@echo "Linking external registry secret to SAs namespace $(NAMESPACE)..."
 	@oc secrets link simulation-console-pod-monitor my-reg-secret --for=pull -n $(NAMESPACE)
 endif
 
-run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret 
+add-scc-permission-to-app-service-accounts: ensure-namespace
+	@echo "Permissioning Service Accounts for SCC use (namespace: $(NAMESPACE))"
+	oc adm policy add-scc-to-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n $(NAMESPACE)
+	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-falco -n $(NAMESPACE)
+	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-ingress-nginx -n $(NAMESPACE)
+	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-fluent-bit -n  $(NAMESPACE)
+
+run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-scc-permission-to-app-service-accounts
 	echo ""
 	@echo "Deploying contrast-cargo-cats (namespace: $(NAMESPACE))"
 	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
 		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) \
-		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME)
+		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) --debug
 
 deploy-simulation-console: ensure-namespace create-registry-secret build-simulation-containers
 	@echo "Waiting for ingress controller to be ready..."
@@ -250,8 +265,8 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-simulat
 	done
 	@echo "Getting ingress controller IP..."
 	$(eval INGRESS_IP := $(shell kubectl get service contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.spec.clusterIP}' 2>/dev/null))
-	$(eval VULN_APP_URL := $(if $(filter OpenShift,$(CONTAINER_PLATFORM)),http://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
-	$(eval OPENSEARCH_URL := $(if $(filter OpenShift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
+	$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
+	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
 	@echo "Ingress controller IP: $(INGRESS_IP)"
 	@echo "Deploying simulation console..."
 	helm upgrade --install simulation-console ./simulation-console \
@@ -270,7 +285,7 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-simulat
 		--set consoleui.contrastApiAuthorization=$(CONTRAST__API__AUTHORIZATION)
 	echo ""
 	
-deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console
+deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console create-secret-to-apps-sa-link create-secret-to-console-sa-link
 	$(eval contrast_url := $(shell echo "$(CONTRAST__AGENT__TOKEN)" | base64 --decode | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"\(.*\)"/\1/' | sed 's/-agents//g'))
 	$(eval CONSOLE_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://console-$(NAMESPACE).$(ROUTE_HOST),http://console.localhost))
 	$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),http://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))

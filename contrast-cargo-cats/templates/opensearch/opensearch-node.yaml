@@ -53,6 +53,9 @@ spec:
           value: "-Xms512m -Xmx512m"
         - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
           value: {{ .Values.opensearch.initialAdminPassword }}
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
         ports:
         - containerPort: 9200
           name: api

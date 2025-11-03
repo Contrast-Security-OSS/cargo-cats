@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: contrastdatacollector
-        image: {{ .Values.contrastdatacollector.image }}
+        image: "{{ .Values.imagePrefix }}{{ .Values.contrastdatacollector.image }}"
         imagePullPolicy: {{ .Values.imagePullPolicy }}
         ports:
         - containerPort: 5000

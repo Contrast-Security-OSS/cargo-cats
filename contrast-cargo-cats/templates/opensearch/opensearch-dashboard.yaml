@@ -25,7 +25,7 @@ spec:
   ports:
     - port: 5601
       targetPort: 5601
-      nodePort: 30007
+      nodePort: 30008
 
 ---
 apiVersion: apps/v1
@@ -50,6 +50,9 @@ spec:
         env:
         - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
           value: {{ .Values.opensearch.initialAdminPassword }}
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
         ports:
         - containerPort: 5601
           name: dashboard

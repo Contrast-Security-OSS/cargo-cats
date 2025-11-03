@@ -49,7 +49,7 @@ metadata:
   namespace: {{ .Release.Namespace | default "default" }}
 data:
   app.py: |-
-{{ .Files.Get "../services/console-ui/app.py" | indent 4 }}
+{{ .Files.Get "../services/console-ui/app.py" | tpl . . | indent 4 }}
   index.html: |-
 {{ .Files.Get "../services/console-ui/templates/index.html" | indent 4 | tpl . . | indent 4 }}
 ---
@@ -84,7 +84,7 @@ spec:
 {{- end }}
       containers:
         - name: {{ .Values.consoleui.name }}
-          image: {{ .Values.consoleui.image }}
+          image: "{{ .Values.imagePrefix }}{{ .Values.consoleui.image }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           ports:
             - containerPort: 5000

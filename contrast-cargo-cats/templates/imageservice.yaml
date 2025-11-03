@@ -19,16 +19,19 @@ spec:
       labels:
         app: {{ .Values.imageservice.name }}
     spec:
-      serviceAccountName: {{ include "contrast-cargo-cats.serviceAccountName" . }}
+      serviceAccount: {{ include "contrast-cargo-cats.serviceAccountName" . }}
       containers:
         - name: {{ .Values.imageservice.name }}
-          image: {{ .Values.imageservice.image }} 
+          image: "{{ .Values.imagePrefix }}{{ .Values.imageservice.image }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
           - name: CONTRAST__APPLICATION__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.imageservice.name }}'
           - name: CONTRAST__SERVER__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.imageservice.name }}-agent'
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
           ports:
             - containerPort: 80
           resources:
