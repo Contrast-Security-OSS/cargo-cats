@@ -105,8 +105,14 @@ Before you can deploy Cargo Cats, ensure you have the following installed:
    CONTRAST__API__AUTHORIZATION=your-authorization-header
    ```
    
-   
    **Note**: The optional `CONTRAST__API__KEY` and `CONTRAST__API__AUTHORIZATION` variables enable ADR data fetching into OpenSearch and ADR deletion functionality when deployed in certain environments. These are not required for basic operation.
+
+   **Note**: if using OpenShift and an external image registry, also provide:
+   ```bash
+   # registry
+   REG_API_KEY=your_reg_api_key
+   REG_USERNAME=your_reg_username
+   ```
 
 ## Deployment
 
@@ -114,6 +120,11 @@ Once you have completed the setup, deploy the application with a single command:
 
 ```bash
 make deploy
+```
+
+or for OpenShift:
+```bash
+ make deploy CONTAINER_PLATFORM=openshift EXTERNAL_REGISTRY=true REGISTRY=<external_registry> ENGINE=podman [NAMESPACE=cargo-cats]
 ```
 
 This command will:
