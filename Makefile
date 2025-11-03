@@ -18,7 +18,8 @@
 	\
 	# Helm & deployment
 	download-helm-dependencies deploy-contrast run-helm deploy-simulation-console deploy \
-	setup-opensearch validate-env-vars \
+	setup-opensearch validate-env-vars 	add-scc-permission-to-app-service-accounts \
+	add-scc-permission-to-simulation-service-accounts \
 	\
 	# Uninstall/redeploy
 	uninstall redeploy
@@ -239,15 +240,26 @@ ifeq ($(EXTERNAL_REGISTRY),true)
 endif
 
 add-scc-permission-to-app-service-accounts: ensure-namespace
+ifeq ($(CONTAINER_PLATFORM),openshift)
 	@echo "Permissioning Service Accounts for SCC use (namespace: $(NAMESPACE))"
 	oc adm policy add-scc-to-user anyuid -z contrast-cargo-cats-imageservice-sa -n $(NAMESPACE)
-	oc adm policy add-scc-to-user nonroot-v2 -z simulation-console-zapproxy-sa -n $(NAMESPACE)
 	oc adm policy add-scc-to-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-falco -n $(NAMESPACE)
 	oc adm policy add-scc-to-user nonroot-v2 -z opensearch-dashboard-sa -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z opensearch-node-sa -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-ingress-nginx -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-fluent-bit -n  $(NAMESPACE)
+else
+	@echo "Skipping add-scc-permissions (not on OpenShift)"
+endif
+
+add-scc-permission-to-simulation-service-accounts: ensure-namespace
+ifeq ($(CONTAINER_PLATFORM),openshift)
+	@echo "Permissioning Service Accounts for SCC use (namespace: $(NAMESPACE))"
+	oc adm policy add-scc-to-user nonroot-v2 -z simulation-console-zapproxy-sa -n $(NAMESPACE)
+else
+	@echo "Skipping add-scc-permissions (not on OpenShift)"
+endif
 
 opensearch-sysctl:
 ifeq ($(CONTAINER_PLATFORM),openshift)
@@ -267,7 +279,7 @@ run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-
 		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) \
 		--debug
 
-deploy-simulation-console: ensure-namespace create-registry-secret build-and-push-simulation
+deploy-simulation-console: ensure-namespace create-registry-secret build-and-push-simulation add-scc-permission-to-simulation-service-accounts
 	@echo "Waiting for ingress controller to be ready..."
 	@until kubectl get deployment contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q "1"; do \
 		echo "Waiting for ingress controller..."; \
