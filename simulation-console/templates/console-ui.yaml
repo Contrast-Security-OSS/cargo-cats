@@ -71,7 +71,7 @@ spec:
       containers:
         - name: {{ .Values.consoleui.name }}
           image: {{ .Values.consoleui.image }}
-          imagePullPolicy: Never
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           ports:
             - containerPort: 5000
               name: http

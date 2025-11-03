@@ -6,7 +6,13 @@ zapproxy:
   image: ghcr.io/zaproxy/zaproxy:stable
   name: zapproxy
 
+serviceAccount:
+  create: false    # Helm will create a ServiceAccount if true
+  name: ""        # optional override; blank means use default fullname
+
 imagePrefix: ""   # blank by default
+
+imagePullPolicy: Never
 
 consoleui:
   image: "{{ .Values.imagePrefix }}console-ui:latest"

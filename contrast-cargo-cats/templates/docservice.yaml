@@ -19,10 +19,11 @@ spec:
       labels:
         app: {{ .Values.docservice.name }}
     spec:
+      serviceAccountName: {{ include "contrast-cargo-cats.serviceAccountName" . }}
       containers:
         - name: {{ .Values.docservice.name }}
           image: {{ .Values.docservice.image }} 
-          imagePullPolicy: Never
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
           - name: CONTRAST__APPLICATION__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.docservice.name }}'

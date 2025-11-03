@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: opensearch-dashboard-config
+  namespace: {{ .Release.Namespace }}
 data:
   opensearch_dashboards.yml: |
     server.host: 0.0.0.0

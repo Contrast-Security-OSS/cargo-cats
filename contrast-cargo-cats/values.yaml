@@ -2,6 +2,12 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+serviceAccount:
+  create: false    # Helm will create a ServiceAccount if true
+  name: ""        # optional override; blank means use default fullname
+
+imagePullPolicy: Never
+
 imagePrefix: ""   # default blank
 
 mysql:

@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: console
+  namespace: {{ .Release.Namespace }}
+spec:
+  to:
+    kind: Service
+    name: console-ui
+  port:
+    targetPort: http
+  tls:
+    termination: edge

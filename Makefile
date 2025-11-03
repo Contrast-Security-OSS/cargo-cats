@@ -30,8 +30,19 @@ ifeq ($(EXTERNAL_REGISTRY),true)
         $(error EXTERNAL_REGISTRY=true but REGISTRY is not set. REGISTRY must be full registry path, e.g. quay.io/myteam)
     endif
     IMAGE_PREFIX := $(REGISTRY)/
+	HELM_IMAGE_PREFIX := --set imagePrefix=$IMAGE_PREFIX
 else
     IMAGE_PREFIX :=
+	HELM_IMAGE_PREFIX :=
+endif
+
+# ======================
+# Image Pull Logic
+# ======================
+ifeq ($(CONTAINER_PLATFORM),OpenShift)
+    HELM_IMAGE_PULL_POLICY := --set imagePullPolicy=IfNotPresent
+else
+    HELM_IMAGE_PULL_POLICY :=
 endif
 
 # ======================
@@ -204,6 +215,7 @@ run-helm: build-and-push-cargo-cats ensure-namespace
 	@echo "Deploying contrast-cargo-cats (namespace: $(NAMESPACE))"
 	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
+		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) \
 		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME)
 
 deploy-simulation-console: ensure-namespace build-simulation-containers
@@ -218,6 +230,7 @@ deploy-simulation-console: ensure-namespace build-simulation-containers
 	@echo "Deploying simulation console..."
 	helm upgrade --install simulation-console ./simulation-console \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
+		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) \
 		--set-string aliashost.cargocats\\.localhost=$(INGRESS_IP) \
 		--set contrastdatacollector.contrastUniqName=$(CONTRAST__UNIQ__NAME) \
 		--set contrastdatacollector.contrastApiToken=$(CONTRAST__AGENT__TOKEN) \
