@@ -240,6 +240,7 @@ endif
 
 add-scc-permission-to-app-service-accounts: ensure-namespace
 	@echo "Permissioning Service Accounts for SCC use (namespace: $(NAMESPACE))"
+	oc adm policy add-scc-to-user anyuid -z contrast-cargo-cats-imageservice-sa -n $(NAMESPACE)
 	oc adm policy add-scc-to-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-falco -n $(NAMESPACE)
 	oc adm policy add-scc-to-user nonroot-v2 -z opensearch-dashboard-sa -n $(NAMESPACE)
