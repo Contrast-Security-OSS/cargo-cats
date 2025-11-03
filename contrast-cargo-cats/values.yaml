@@ -10,6 +10,8 @@ imagePullPolicy: Never
 
 imagePrefix: ""   # default blank
 
+imagePullSecretName: ""
+
 mysql:
   rootPassword: cargocats
   database: db

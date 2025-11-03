@@ -3,7 +3,7 @@
 .PHONY: \
 	# Namespace & registry setup
 	ensure-namespace registry-login create-registry-secret \
-	create-secret-to-apps-sa-link create-secret-to-console-sa-link \
+	create-secret-to-apps-sa-link \
 	\
 	# Build targets - Cargo Cats core
 	build-dataservice build-webhookservice build-frontgateservice build-exploit-server \
@@ -54,9 +54,11 @@ $(error EXTERNAL_REGISTRY=true but REGISTRY is not set. REGISTRY must be full re
 endif
 IMAGE_PREFIX := $(REGISTRY)/
 HELM_IMAGE_PREFIX := --set imagePrefix=$(IMAGE_PREFIX)
+HELM_PULL_SECRET := --set imagePullSecretName=my-reg-secret
 else
 IMAGE_PREFIX :=
 HELM_IMAGE_PREFIX :=
+HELM_PULL_SECRET :=
 endif
 
 # ======================
@@ -236,12 +238,6 @@ ifeq ($(EXTERNAL_REGISTRY),true)
 	@oc secrets link default my-reg-secret --for=pull -n $(NAMESPACE)
 endif
 
-create-secret-to-console-sa-link: create-registry-secret deploy-simulation-console
-ifeq ($(EXTERNAL_REGISTRY),true)
-	@echo "Linking external registry secret to SAs namespace $(NAMESPACE)..."
-	@oc secrets link simulation-console-pod-monitor my-reg-secret --for=pull -n $(NAMESPACE)
-endif
-
 add-scc-permission-to-app-service-accounts: ensure-namespace
 	@echo "Permissioning Service Accounts for SCC use (namespace: $(NAMESPACE))"
 	oc adm policy add-scc-to-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n $(NAMESPACE)
@@ -260,12 +256,12 @@ else
 	@echo "Skipping sysctl (not on OpenShift)"
 endif
 
-run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-scc-permission-to-app-service-accounts opensearch-sysctl
+run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-scc-permission-to-app-service-accounts opensearch-sysctl create-secret-to-apps-sa-link
 	echo ""
 	@echo "Deploying contrast-cargo-cats (namespace: $(NAMESPACE))"
 	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
-		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) \
+		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) $(HELM_PULL_SECRET) \
 		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) \
 		--debug
 
@@ -283,7 +279,7 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-simulat
 	@echo "Deploying simulation console..."
 	helm upgrade --install simulation-console ./simulation-console \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
-		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) \
+		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) $(HELM_PULL_SECRET) \
 		--set consoleui.vulnAppUrl=$(VULN_APP_URL) \
 		--set consoleui.opensearchUrl=$(OPENSEARCH_URL) \
 		--set-string aliashost.cargocats\\.localhost=$(INGRESS_IP) \
@@ -298,7 +294,7 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-simulat
 		--debug
 	echo ""
 	
-deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console create-secret-to-apps-sa-link create-secret-to-console-sa-link
+deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console
 	$(eval contrast_url := $(shell echo "$(CONTRAST__AGENT__TOKEN)" | base64 --decode | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"\(.*\)"/\1/' | sed 's/-agents//g'))
 	$(eval CONSOLE_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://console-$(NAMESPACE).$(ROUTE_HOST),http://console.localhost))
 	$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
