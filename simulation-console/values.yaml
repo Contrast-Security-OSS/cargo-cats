@@ -6,8 +6,10 @@ zapproxy:
   image: ghcr.io/zaproxy/zaproxy:stable
   name: zapproxy
 
+imagePrefix: ""   # blank by default
+
 consoleui:
-  image: console-ui:latest
+  image: "{{ .Values.imagePrefix }}console-ui:latest"
   name: console-ui
   contrastApiToken: "default-token"
   contrastUniqName: "default"
@@ -15,14 +17,13 @@ consoleui:
   contrastApiAuthorization: "default-authorization"
 
 exploitserver:
-  image: exploit-server:latest
+  image: "{{ .Values.imagePrefix }}exploit-server:latest"
   name: exploit-server
 
 contrastdatacollector:
-  image: contrastdatacollector:latest
+  image: "{{ .Values.imagePrefix }}contrastdatacollector:latest"
   name: contrastdatacollector
   contrastUniqName: "default"
   contrastApiToken: "default-token"
   contrastApiKey: "default-api-key"
   contrastApiAuthorization: "default-authorization"
-

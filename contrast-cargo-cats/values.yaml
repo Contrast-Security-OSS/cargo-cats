@@ -2,6 +2,8 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+imagePrefix: ""   # default blank
+
 mysql:
   rootPassword: cargocats
   database: db
@@ -9,27 +11,27 @@ mysql:
   password: cargocats
 
 cargocatsDataservice:
-  image: dataservice:latest 
+  image: "{{ .Values.imagePrefix }}dataservice:latest"
   name: dataservice
 
 frontgateservice:
-  image: frontgateservice:latest
+  image: "{{ .Values.imagePrefix }}frontgateservice:latest"
   name: frontgateservice
 
 webhookservice:
-  image: webhookservice:latest 
+  image: "{{ .Values.imagePrefix }}webhookservice:latest"
   name: webhookservice
 
 imageservice:
-  image: imageservice:latest
+  image: "{{ .Values.imagePrefix }}imageservice:latest"
   name: imageservice
 
 labelservice:
-  image: labelservice:latest
+  image: "{{ .Values.imagePrefix }}labelservice:latest"
   name: labelservice
 
 docservice:
-  image: docservice:latest
+  image: "{{ .Values.imagePrefix }}docservice:latest
   name: docservice
 
 opensearch:
