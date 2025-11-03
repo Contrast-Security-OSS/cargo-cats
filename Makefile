@@ -246,14 +246,16 @@ add-scc-permission-to-app-service-accounts: ensure-namespace
 	@echo "Permissioning Service Accounts for SCC use (namespace: $(NAMESPACE))"
 	oc adm policy add-scc-to-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-falco -n $(NAMESPACE)
+	oc adm policy add-scc-to-user nonroot-v2 -z opensearch-dashboard-sa -n $(NAMESPACE)
+	oc adm policy add-scc-to-user privileged -z opensearch-node-sa -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-ingress-nginx -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-fluent-bit -n  $(NAMESPACE)
 
 opensearch-sysctl:
 ifeq ($(CONTAINER_PLATFORM),openshift)
-	@echo "Settin max_map_count for OpenSearch"
-	oc apply -f sysctl-tuner.yaml
+	@echo "Setting max_map_count for OpenSearch"
 	oc adm policy add-scc-to-user privileged -z sysctl-tuner -n openshift-operators
+	oc apply -f sysctl-tuner.yaml
 else
 	@echo "Skipping sysctl (not on OpenShift)"
 endif

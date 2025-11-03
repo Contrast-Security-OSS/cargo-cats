@@ -44,6 +44,7 @@ spec:
       labels:
         app: opensearch-dashboard
     spec:
+      serviceAccount: opensearch-dashboard-sa
       containers:
       - image: opensearchproject/opensearch-dashboards:latest
         name: dashboard
