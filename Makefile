@@ -265,7 +265,7 @@ run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-
 		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) \
 		--debug
 
-deploy-simulation-console: ensure-namespace create-registry-secret build-simulation-containers
+deploy-simulation-console: ensure-namespace create-registry-secret build-and-push-simulation
 	@echo "Waiting for ingress controller to be ready..."
 	@until kubectl get deployment contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q "1"; do \
 		echo "Waiting for ingress controller..."; \

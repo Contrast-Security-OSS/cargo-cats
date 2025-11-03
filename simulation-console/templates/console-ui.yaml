@@ -82,14 +82,14 @@ spec:
             - "{{ $host }}"
 {{- end }}
 {{- end }}
+      {{- if .Values.imagePullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecretName }}
+      {{- end}}
       containers:
         - name: {{ .Values.consoleui.name }}
           image: "{{ .Values.imagePrefix }}{{ .Values.consoleui.image }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
-          {{- if .Values.imagePullSecretName }}
-          imagePullSecrets:
-            - name: {{ .Values.imagePullSecretName }}
-          {{- end}}
           ports:
             - containerPort: 5000
               name: http
