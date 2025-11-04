@@ -29,6 +29,10 @@ spec:
     spec:
       #serviceAccount: {{ include "contrast-cargo-cats.serviceAccountName" . }}
       serviceAccount: '{{.Release.Name}}-{{ .Values.imageservice.name }}-sa'
+      {{- if .Values.imagePullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecretName }}
+      {{- end}}
       containers:
         - name: {{ .Values.imageservice.name }}
           image: "{{ .Values.imagePrefix }}{{ .Values.imageservice.image }}"
