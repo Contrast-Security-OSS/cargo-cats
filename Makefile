@@ -106,7 +106,15 @@ download-helm-dependencies:
 	@cd contrast-cargo-cats && helm dependency update
 	@echo "Helm chart dependencies downloaded successfully."
 
-deploy-contrast: ensure-namespace
+deploy-contrast-openshift:
+ifeq ($(CONTAINER_PLATFORM),openshift)
+	@echo "Permissioning Agent Service Account for SCC use (namespace: $(NAMESPACE))"
+	oc adm policy add-scc-to-user anyuid -z contrast-agent-operator-service-account -n contrast-agent-operator
+else
+	@echo "Skipping deploy-contrast-openshift (not on OpenShift)"
+endif
+
+deploy-contrast: ensure-namespace deploy-contrast-openshift
 	@echo "\nDeploying Contrast Agent Operator..."
 	kubectl apply -f https://github.com/Contrast-Security-OSS/agent-operator/releases/latest/download/install-prod.yaml
 	@echo "\nSetting Contrast Agent Operator Token..."
@@ -118,9 +126,18 @@ ifeq ($(NAMESPACE),default)
 else
 	# Replace all 'namespace: default' with 'namespace: $(NAMESPACE)'
 	sed "s/namespace: default/namespace: $(NAMESPACE)/g" contrast-agent-operator-config.yaml | kubectl apply -f -
-endif
-	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi"
+	@echo "\nSetting environment variables on operator deployment..."
+ifeq ($(CONTAINER_PLATFORM),openshift)
+	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator \
+		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi" \
+		CONTRAST_SUPPRESS_SECCOMP_PROFILE="true" \
+		CONTRAST_RUN_INIT_CONTAINER_AS_NON_ROOT="false"
 	echo ""
+else
+	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator \
+		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi"
+	echo ""		
+endif
 
 setup-opensearch:
 	@echo "\nSetting up OpenSearch"
