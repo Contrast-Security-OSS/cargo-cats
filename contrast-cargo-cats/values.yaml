@@ -12,6 +12,16 @@ imagePrefix: ""   # default blank
 
 imagePullSecretName: ""
 
+# for Ingress
+appHostName: app
+cargoHostName: cargocats
+opensearchHostName: opensearch
+createAppHost: false
+createCargoCatsHost: false
+createOpensearchHost: false
+# Set by user or set automatically via CI:
+clusterDomain: ""   # Example: apps.mycluster.example.com
+
 mysql:
   rootPassword: cargocats
   database: db
