@@ -67,8 +67,10 @@ endif
 # ======================
 ifeq ($(CONTAINER_PLATFORM),openshift)
     HELM_IMAGE_PULL_POLICY := --set imagePullPolicy=IfNotPresent
+    HELM_FLUENT_BIT_SECURITY_CONTEXT := --set fluent-bit.securityContext.runAsUser=0 --set fluent-bit.securityContext.runAsGroup=0 --set fluent-bit.securityContext.privileged=true
 else
     HELM_IMAGE_PULL_POLICY :=
+    HELM_FLUENT_BIT_SECURITY_CONTEXT :=
 endif
 
 # ======================
@@ -293,6 +295,7 @@ run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-
 	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
 		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) $(HELM_PULL_SECRET) \
+		$(HELM_FLUENT_BIT_SECURITY_CONTEXT) \
 		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) \
 		--debug
 
