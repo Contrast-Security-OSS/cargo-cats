@@ -1,8 +1,9 @@
+{{- if .Values.createIngress }}
 {{- $appHost := "" -}}
 {{- $cargoHost := "" -}}
 {{- $opensearchHost := "" -}}
 
-{{- if .Values.createCargoCatsHost }}
+{{- if .Values.createAppHost }}
 {{- $appHost = printf "%s-%s.%s" .Values.appHostName .Release.Namespace .Values.clusterDomain -}}
 {{- else }}
 {{- $appHost = printf "%s.localhost" .Values.appHostName -}}
@@ -110,4 +111,4 @@ spec:
 #              number: 5000
 
 ---
-
+{{- end }}

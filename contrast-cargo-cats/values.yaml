@@ -12,7 +12,11 @@ imagePrefix: ""   # default blank
 
 imagePullSecretName: ""
 
+# for router
+createRoutes: false
+
 # for Ingress
+createIngess: true
 appHostName: app
 cargoHostName: cargocats
 opensearchHostName: opensearch
