@@ -161,6 +161,11 @@ To remove the application and all associated resources:
 make uninstall
 ```
 
+or if you supplied a namespace, use:
+```bash
+make uninstall NAMESPACE=<namespace>
+```
+
 This will remove the Helm deployment and delete the contrast-agent-operator namespace.
 
 ---

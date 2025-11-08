@@ -372,11 +372,11 @@ deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm se
 	@echo ""
 
 uninstall:
-	helm uninstall contrast-cargo-cats
-	helm uninstall simulation-console
+	helm uninstall contrast-cargo-cats || true
+	helm uninstall simulation-console || true
 	kubectl delete namespace contrast-agent-operator
 	if [ "$(NAMESPACE)" != "default" ]; then \
-		kubectl delete namespace $(NAMESPACE); \
+		kubectl delete namespace $(NAMESPACE) || true; \
 	fi
 
 redeploy: uninstall deploy
