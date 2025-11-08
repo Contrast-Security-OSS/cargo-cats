@@ -1188,7 +1188,8 @@ def run_xss_exploit(session):
     log_exploit_output("Executing XSS exploit")
     r = session.get(f"{cargo_cats_url}/api/shipments/track?trackingId=%3Cscript%3Ealert(document.cookie)%3C%2Fscript%3E", timeout=5)
     log_exploit_output(f"XSS exploit response status: {r.status_code}")
-    return r.status_code == 200
+    # XSS payload is reflected in both 200 (found) and 404 (not found) responses
+    return r.status_code in [200, 404]
 
 def run_login_exploit(session):
     """Execute login with default credentials"""

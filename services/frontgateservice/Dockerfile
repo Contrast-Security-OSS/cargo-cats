@@ -6,7 +6,7 @@ COPY . .
 
 RUN --mount=type=cache,target=/root/.m2 mvn clean package -Dmaven.test.skip=true
 
-FROM openjdk:11-jdk-slim
+FROM eclipse-temurin:11-jre-jammy
 
 WORKDIR /app
 
