@@ -124,7 +124,7 @@ make deploy
 
 or for OpenShift:
 ```bash
- make deploy CONTAINER_PLATFORM=openshift EXTERNAL_REGISTRY=true REGISTRY=<external_registry> ENGINE=podman [NAMESPACE=cargo-cats]
+make deploy CONTAINER_PLATFORM=openshift EXTERNAL_REGISTRY=true REGISTRY=<external_registry> ENGINE=podman [NAMESPACE=cargo-cats]
 ```
 
 This command will:
