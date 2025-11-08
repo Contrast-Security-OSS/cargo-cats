@@ -124,7 +124,7 @@ spec:
             - "{{ $host }}"
 {{- end }}
 {{- end }}
-      ServiceAccount: "{{ .Release.Name }}-{{ .Values.zapproxy.name }}-sa"
+      serviceAccount: "{{ .Release.Name }}-{{ .Values.zapproxy.name }}-sa"
       containers:
         - name: {{ .Values.zapproxy.name }}
           image: {{ .Values.zapproxy.image }}
