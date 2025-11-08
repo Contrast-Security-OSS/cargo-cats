@@ -1,3 +1,7 @@
 .env
 /contrast-cargo-cats/charts
 .k8s_env
+
+# Build target directories (Rust/Java/Scala, etc.)
+target/
+**/target/
