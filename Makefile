@@ -305,8 +305,7 @@ run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
 		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) $(HELM_PULL_SECRET) \
 		$(HELM_FLUENT_BIT_SECURITY_CONTEXT) $(HELM_CREATE_ROUTE) $(HELM_CREATE_INGRESS)\
-		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) \
-		--debug
+		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME)
 	
 	@if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
 		echo "Deploying nginx-modsecurity in (namespace: $(NAMESPACE))"; \
@@ -344,8 +343,7 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-and-pus
 		--set consoleui.contrastApiToken=$(CONTRAST__AGENT__TOKEN) \
 		--set consoleui.contrastUniqName=$(CONTRAST__UNIQ__NAME) \
 		--set consoleui.contrastApiKey=$(CONTRAST__API__KEY) \
-		--set consoleui.contrastApiAuthorization=$(CONTRAST__API__AUTHORIZATION) \
-		--debug
+		--set consoleui.contrastApiAuthorization=$(CONTRAST__API__AUTHORIZATION)
 
 deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console
 	$(eval contrast_url := $(shell echo "$(CONTRAST__AGENT__TOKEN)" | base64 --decode | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"\(.*\)"/\1/' | sed 's/-agents//g'))
