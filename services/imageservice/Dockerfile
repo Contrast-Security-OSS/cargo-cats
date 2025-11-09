@@ -12,11 +12,20 @@ RUN dotnet publish -c Release -o out
 
 # Use the official .NET Core runtime image for the final image
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
-WORKDIR /app
-COPY --from=build /app/out .
 
-# Expose port 80
-EXPOSE 80
+USER 0
+
+# Copy build artifacts
+WORKDIR /app
+COPY --chown=app --from=build /app/out .
+RUN chown -R app:0 /app && \
+    chmod -R g=u /app
+
+# Use app user
+USER app
+
+# Expose port 5001
+EXPOSE 5001
 
 # Set the entry point
 ENTRYPOINT ["dotnet", "imageservice.dll"]

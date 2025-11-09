@@ -16,7 +16,6 @@ metadata:
   name: '{{.Release.Name}}-db'
   namespace: {{ .Release.Namespace }}
 spec:
-  serviceAccountName: {{ include "contrast-cargo-cats.serviceAccountName" . }}
   selector:
     matchLabels:
       app: '{{.Release.Name}}-db'
@@ -27,6 +26,7 @@ spec:
       labels:
         app: '{{.Release.Name}}-db'
     spec:
+      serviceAccountName: {{ include "contrast-cargo-cats.serviceAccountName" . }}
       containers:
       - image: mysql:9
         name: mysql

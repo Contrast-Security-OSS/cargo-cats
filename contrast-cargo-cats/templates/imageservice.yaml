@@ -42,11 +42,11 @@ spec:
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.imageservice.name }}'
           - name: CONTRAST__SERVER__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.imageservice.name }}-agent'
-          securityContext:
-            runAsUser: 0
-            runAsGroup: 0
+          #securityContext:
+          #  runAsUser: 0
+          #  runAsGroup: 0
           ports:
-            - containerPort: 80
+            - containerPort: 5001
           resources:
             requests:
               memory: "128Mi"
@@ -70,8 +70,8 @@ spec:
   ports:
     - name: http-port      
       protocol: TCP
-      port: 80           
-      targetPort: 80     
+      port: 5001         
+      targetPort: 5001
 
 
 ---

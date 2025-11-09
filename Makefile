@@ -63,6 +63,22 @@ HELM_PULL_SECRET :=
 endif
 
 # ======================
+# OpenShift Route Logic
+# ======================
+ifeq ($(CONTAINER_PLATFORM),openshift)
+    ROUTE_HOST := $(shell oc get ingresses.config/cluster -o jsonpath='{.spec.domain}')
+else
+    ROUTE_HOST := localhost
+endif
+
+# ======================
+# URL Logic
+# ======================
+$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
+$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
+$(eval CONSOLE_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://console-$(NAMESPACE).$(ROUTE_HOST),http://console.localhost))
+
+# ======================
 # Helm Values Logic
 # ======================
 ifeq ($(CONTAINER_PLATFORM),openshift)
@@ -77,31 +93,26 @@ else
     HELM_CREATE_INGRESS := --set createIngress=true
 endif
 
-# ======================
-# OpenShift Route Logic
-# ======================
-ifeq ($(CONTAINER_PLATFORM),openshift)
-    ROUTE_HOST := $(shell oc get ingresses.config/cluster -o jsonpath='{.spec.domain}')
-else
-    ROUTE_HOST := localhost
-endif
-
 ensure-namespace:
+	@echo ""
 	@echo "Ensuring namespace $(NAMESPACE) exists..."
 	kubectl get namespace $(NAMESPACE) >/dev/null 2>&1 || kubectl create namespace $(NAMESPACE)
 
 ensure-agent-operator-namespace:
+	@echo ""
 	@echo "Ensuring namespace contrast-agent-operator exists..."
 	kubectl create namespace contrast-agent-operator --dry-run=client -o yaml | kubectl apply -f -
 
 registry-login:
 ifeq ($(EXTERNAL_REGISTRY),true)
+	@echo ""
 	@echo "Logging into registry $(REGISTRY)"
 	echo "$(REG_API_KEY)" | $(ENGINE) login $(REGISTRY) -u "$(REG_USERNAME)" --password-stdin
 endif
 
 create-registry-secret: ensure-namespace
 ifeq ($(EXTERNAL_REGISTRY),true)
+	@echo ""
 	@echo "Creating external registry secret in namespace $(NAMESPACE)..."
 	@oc create secret docker-registry my-reg-secret \
 		--docker-server=$(REGISTRY) \
@@ -112,12 +123,14 @@ ifeq ($(EXTERNAL_REGISTRY),true)
 endif
 
 download-helm-dependencies:
+	@echo ""
 	@echo "Downloading Helm chart dependencies..."
 	@cd contrast-cargo-cats && helm dependency update
 	@echo "Helm chart dependencies downloaded successfully."
 
 deploy-contrast-openshift: ensure-agent-operator-namespace
 ifeq ($(CONTAINER_PLATFORM),openshift)
+	@echo ""
 	@echo "Permissioning Agent Service Account for SCC use (namespace: $(NAMESPACE))"
 	oc adm policy add-scc-to-user anyuid -z contrast-agent-operator-service-account -n contrast-agent-operator
 else
@@ -125,34 +138,40 @@ else
 endif
 
 deploy-contrast: ensure-namespace deploy-contrast-openshift
-	@echo "\nDeploying Contrast Agent Operator..."
+	@echo ""
+	@echo "Deploying Contrast Agent Operator..."
 	kubectl apply -f https://github.com/Contrast-Security-OSS/agent-operator/releases/latest/download/install-prod.yaml
-	@echo "\nSetting Contrast Agent Operator Token..."
+
+	@echo ""
+	@echo "Setting Contrast Agent Operator Token..."
 	kubectl -n contrast-agent-operator delete secret default-agent-connection-secret --ignore-not-found
 	kubectl -n contrast-agent-operator create secret generic default-agent-connection-secret --from-literal=token=$(CONTRAST__AGENT__TOKEN)
-	@echo "\nApplying Contrast Agent Operator Configuration..."
+
+	@echo ""
+	@echo "Applying Contrast Agent Operator Configuration..."
+
 ifeq ($(NAMESPACE),default)
-	kubectl apply -f contrast-agent-operator-config.yaml
+	kubectl apply -f contrast-agent-operator-config.yaml -n contrast-agent-operator
 else
-	# Replace all 'namespace: default' with 'namespace: $(NAMESPACE)'
-	sed "s/namespace: default/namespace: $(NAMESPACE)/g" contrast-agent-operator-config.yaml | kubectl apply -f -
-	@echo "\nSetting environment variables on operator deployment..."
+	@sed "s/namespace: default/namespace: $(NAMESPACE)/g" contrast-agent-operator-config.yaml | kubectl apply -f -
+endif
+
 ifeq ($(CONTAINER_PLATFORM),openshift)
+	@echo ""
+	@echo "Setting extra env vars for OpenShift..."
 	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator \
-		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi" #\
-		#CONTRAST_SUPPRESS_SECCOMP_PROFILE="true" \
-		#CONTRAST_RUN_INIT_CONTAINER_AS_NON_ROOT="false"
-	echo ""
+		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi" \
+		CONTRAST_SUPPRESS_SECCOMP_PROFILE="true" \
+		CONTRAST_RUN_INIT_CONTAINER_AS_NON_ROOT="false"
 else
+	@echo ""
+	@echo "Setting standard operator env vars..."
 	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator \
 		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi"
-	echo ""		
-endif
 endif
 
 setup-opensearch:
 	@echo "\nSetting up OpenSearch"
-	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
 	@echo "Using OpenSearch URL: $(OPENSEARCH_URL)"
 	@until curl --insecure -s -o /dev/null -w "%{http_code}" $(OPENSEARCH_URL) | grep -q "302"; do \
         echo "Waiting for OpenSearch..."; \
@@ -261,7 +280,7 @@ push-simulation: \
 	push-contrastdatacollector
 	@echo "Pushed simulation containers."
 
-create-secret-to-apps-sa-link: create-registry-secret run-helm
+create-secret-to-apps-sa-link: create-registry-secret
 ifeq ($(EXTERNAL_REGISTRY),true)
 	@echo "Linking external registry secret to SAs namespace $(NAMESPACE)..."
 	@oc secrets link default my-reg-secret --for=pull -n $(NAMESPACE)
@@ -269,6 +288,7 @@ endif
 
 add-scc-permission-to-app-service-accounts: ensure-namespace
 ifeq ($(CONTAINER_PLATFORM),openshift)
+	@echo ""
 	@echo "Permissioning App Service Accounts for SCC use (namespace: $(NAMESPACE))"
 	#oc adm policy add-scc-to-user anyuid -z contrast-cargo-cats-imageservice-sa -n $(NAMESPACE)
 	oc adm policy add-scc-to-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n $(NAMESPACE)
@@ -283,6 +303,7 @@ endif
 
 add-scc-permission-to-simulation-service-accounts: ensure-namespace
 ifeq ($(CONTAINER_PLATFORM),openshift)
+	@echo ""
 	@echo "Permissioning Simulation Service Accounts for SCC use (namespace: $(NAMESPACE))"
 	oc adm policy add-scc-to-user nonroot-v2 -z simulation-console-zapproxy-sa -n $(NAMESPACE)
 else
@@ -291,6 +312,7 @@ endif
 
 opensearch-sysctl:
 ifeq ($(CONTAINER_PLATFORM),openshift)
+	@echo ""
 	@echo "Setting max_map_count for OpenSearch"
 	oc adm policy add-scc-to-user privileged -z sysctl-tuner -n openshift-operators
 	oc apply -f sysctl-tuner.yaml
@@ -299,7 +321,7 @@ else
 endif
 
 run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-scc-permission-to-app-service-accounts opensearch-sysctl create-secret-to-apps-sa-link
-	echo ""
+	@echo ""
 	@echo "Deploying contrast-cargo-cats (namespace: $(NAMESPACE))"
 	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
@@ -308,13 +330,16 @@ run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-
 		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME)
 	
 	@if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
+		echo ""; \
 		echo "Deploying nginx-modsecurity in (namespace: $(NAMESPACE))"; \
 		oc apply -f ./openshift_modsecurity_nginx/modsecurity_deployment.yaml -n $(NAMESPACE); \
 		oc set env deployment/modsecurity-crs-proxy BACKEND=http://frontgateservice.$(NAMESPACE).svc.cluster.local:8081 -n $(NAMESPACE); \
 	fi
 
 deploy-simulation-console: ensure-namespace create-registry-secret build-and-push-simulation add-scc-permission-to-simulation-service-accounts
-	@if [ "$(CONTAINER_PLATFORM)" != "openshift" ]; then \
+	@if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
+		INGRESS_ARG=""; \
+	else \
 		echo "Waiting for ingress controller to be ready..."; \
 		until kubectl get deployment contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q "1"; do \
 			echo "Waiting for ingress controller..."; \
@@ -324,33 +349,29 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-and-pus
 		INGRESS_IP=$$(kubectl get service contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.spec.clusterIP}' 2>/dev/null); \
 		echo "Ingress controller IP: $$INGRESS_IP"; \
 		INGRESS_ARG="--set-string aliashost.cargocats\\.localhost=$$INGRESS_IP"; \
-	else \
-		echo "OpenShift detected, skipping ingress controller setup"; \
-		INGRESS_ARG=""; \
 	fi; \
 	\
+	echo ""; \
 	echo "Deploying simulation console..."; \
 	helm upgrade --install simulation-console ./simulation-console \
 		-n $(NAMESPACE) --create-namespace --cleanup-on-fail \
 		$(HELM_IMAGE_PULL_POLICY) $(HELM_IMAGE_PREFIX) $(HELM_PULL_SECRET) \
-		--set consoleui.vulnAppUrl=$(VULN_APP_URL) \
-		--set consoleui.opensearchUrl=$(OPENSEARCH_URL) \
+		--set consoleui.vulnAppUrl="$(VULN_APP_URL)" \
+		--set consoleui.opensearchUrl="$(OPENSEARCH_URL)" \
 		$$INGRESS_ARG \
-		--set contrastdatacollector.contrastUniqName=$(CONTRAST__UNIQ__NAME) \
-		--set contrastdatacollector.contrastApiToken=$(CONTRAST__AGENT__TOKEN) \
-		--set contrastdatacollector.contrastApiKey=$(CONTRAST__API__KEY) \
-		--set contrastdatacollector.contrastApiAuthorization=$(CONTRAST__API__AUTHORIZATION) \
-		--set consoleui.contrastApiToken=$(CONTRAST__AGENT__TOKEN) \
-		--set consoleui.contrastUniqName=$(CONTRAST__UNIQ__NAME) \
-		--set consoleui.contrastApiKey=$(CONTRAST__API__KEY) \
-		--set consoleui.contrastApiAuthorization=$(CONTRAST__API__AUTHORIZATION)
+		--set contrastdatacollector.contrastUniqName="$(CONTRAST__UNIQ__NAME)" \
+		--set contrastdatacollector.contrastApiToken="$(CONTRAST__AGENT__TOKEN)" \
+		--set contrastdatacollector.contrastApiKey="$(CONTRAST__API__KEY)" \
+		--set contrastdatacollector.contrastApiAuthorization="$(CONTRAST__API__AUTHORIZATION)" \
+		--set consoleui.contrastApiToken="$(CONTRAST__AGENT__TOKEN)" \
+		--set consoleui.contrastUniqName="$(CONTRAST__UNIQ__NAME)" \
+		--set consoleui.contrastApiKey="$(CONTRAST__API__KEY)" \
+		--set consoleui.contrastApiAuthorization="$(CONTRAST__API__AUTHORIZATION)"
 
 deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console
 	$(eval contrast_url := $(shell echo "$(CONTRAST__AGENT__TOKEN)" | base64 --decode | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"\(.*\)"/\1/' | sed 's/-agents//g'))
-	$(eval CONSOLE_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://console-$(NAMESPACE).$(ROUTE_HOST),http://console.localhost))
-	$(eval VULN_APP_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://cargocats-$(NAMESPACE).$(ROUTE_HOST),http://cargocats.localhost))
-	$(eval OPENSEARCH_URL := $(if $(filter openshift,$(CONTAINER_PLATFORM)),https://opensearch-$(NAMESPACE).$(ROUTE_HOST),http://opensearch.localhost))
-	@echo "\n\nDeployment complete!"
+	@echo ""
+	@echo "Deployment complete!"
 	@echo "=================================================================="
 	@echo "Note: It may take a few minutes for the deployment to be fully ready."
 	@echo "==================================================================\n"
@@ -372,7 +393,7 @@ deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm se
 uninstall:
 	helm uninstall contrast-cargo-cats || true
 	helm uninstall simulation-console || true
-	kubectl delete namespace contrast-agent-operator
+	kubectl delete namespace contrast-agent-operator --ignore-not-found
 	if [ "$(NAMESPACE)" != "default" ]; then \
 		kubectl delete namespace $(NAMESPACE) || true; \
 	fi
