@@ -68,10 +68,21 @@ Before you can deploy Cargo Cats, ensure you have the following installed:
    - Go to Settings → Kubernetes → Enable Kubernetes
    - Wait for Kubernetes to start (green indicator)
 
+or
+
+1. **OpenShift**
+   - Installed and ready for deployments
+   - Your user account must have cluster admin privileges
+
+plus
+
 2. **Helm** (Kubernetes package manager)
    ```bash
    # macOS with Homebrew
    brew install helm
+
+   # for ubuntu via snap
+   sudo snap install helm --classic
    
    # Or download from: https://helm.sh/docs/intro/install/
    ```
@@ -166,7 +177,7 @@ or if you supplied a namespace, use:
 make uninstall NAMESPACE=<namespace>
 ```
 
-This will remove the Helm deployment and delete the contrast-agent-operator namespace.
+This will remove the Helm deployment and delete the `contrast-agent-operator` namespace.
 
 ---
 
