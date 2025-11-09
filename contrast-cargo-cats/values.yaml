@@ -12,6 +12,8 @@ imagePrefix: ""   # default blank
 
 imagePullSecretName: ""
 
+modsecurityProxyName: modsecurity-crs-proxy
+
 # for router
 createRoutes: false
 

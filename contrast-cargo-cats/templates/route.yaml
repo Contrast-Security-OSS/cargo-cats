@@ -7,9 +7,9 @@ metadata:
 spec:
   to:
     kind: Service
-    name: {{ .Values.frontgateservice.name }}
+    name: {{ .Values.modsecurityProxyName.name }} # {{ .Values.frontgateservice.name }}
   port:
-    targetPort: http-port
+    targetPort: http # http-port
   tls:
     termination: edge
 ---
