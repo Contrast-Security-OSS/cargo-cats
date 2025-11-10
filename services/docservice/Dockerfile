@@ -28,8 +28,8 @@ COPY . .
 RUN groupadd -g ${GID} ${USERNAME} \
     && useradd -m -u ${UID} -g ${GID} -d ${HOME_DIR} -s /bin/bash ${USERNAME} \
     && mkdir -p /app/uploads \
-    && chown -R ${UID}:0 /app \
-    && chmod -R g=u /app
+    && chown -R ${UID}:0 /app ${HOME_DIR} \
+    && chmod -R g=u /app ${HOME_DIR}
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
