@@ -1,26 +1,43 @@
 FROM python:3.9-slim
 
+# Build arguments for user setup
+ARG UID=1001
+ARG GID=1001
+ARG USER=myuser
+ARG HOME=/home/myuser
+
+# Export HOME into the environment
+ENV HOME=${HOME}
+
+# Create group and user
+RUN groupadd -g ${GID} ${USER} \
+    && useradd -m -u ${UID} -g ${GID} -d ${HOME} ${USER}
+
 # Set the working directory
 WORKDIR /app
 
 # Copy the requirements file
 COPY requirements.txt .
 
-# Install the dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install gunicorn
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install gunicorn
 
-#install ping
-RUN apt-get update && apt-get install -y iputils-ping
+# Install ping
+RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lists/*
 
 # Copy the application code
 COPY . .
 
-# Expose the port the app runs on
+# Ensure user owns the app directory
+RUN chown -R ${USER}:0 /app && \
+    chmod -R g=u /app
+
+# Switch to non-root user
+USER ${USER}
+
+# Expose port
 EXPOSE 5000
 
-# Define the command to run the application
-# Setting --access-logfile and --error-logfile to - sends logs to stdout/stderr
-# Setting --capture-output captures stdout/stderr from the application
-# Setting --log-level debug increases verbosity of Gunicorn's logs
+# Run app with gunicorn
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--access-logfile", "-", "--error-logfile", "-", "--capture-output", "--log-level", "debug", "app:app"]
