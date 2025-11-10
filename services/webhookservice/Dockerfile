@@ -30,8 +30,8 @@ RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lis
 COPY . .
 
 # Ensure user owns the app directory
-RUN chown -R ${USER}:0 /app && \
-    chmod -R g=u /app
+RUN chown -R ${USER}:0 /app ${HOME} && \
+    chmod -R g=u /app ${HOME}
 
 # Switch to non-root user
 USER ${USER}
