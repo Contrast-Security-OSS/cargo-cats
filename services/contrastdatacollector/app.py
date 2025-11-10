@@ -248,29 +248,89 @@ class ContrastDataCollector:
                 data = response.json()
                 issues_data = data['issues']
                 new_issues = []
+                new_observations_of_existing_issues = []
                 duplicate_count = 0
                 missing_id_count = 0
+
+                now = datetime.now(timezone.utc)
+                cutoff_time = now - timedelta(seconds=self.collection_interval_seconds)
+
                 for issue in issues_data:
                     issue_id = issue.get('issueId')
-                    if issue_id and issue_id not in self.seen_issue_ids:
-                        new_issues.append(issue)
-                        self.seen_issue_ids.add(issue_id)
-                    elif issue_id:
-                        duplicate_count += 1
+                    last_obs_time_str = issue.get('lastObservationTime')
+                    last_obs_time = None
+
+                    # Parse lastObservationTime if present
+                    if last_obs_time_str:
+                        try:
+                            last_obs_time = datetime.fromisoformat(last_obs_time_str.replace('Z', '+00:00'))
+                        except Exception:
+                            logger.warning(f"Could not parse lastObservationTime for issue {issue_id}: {last_obs_time_str}")
+
+                    if issue_id:
+                        # NEW issue
+                        if issue_id not in self.seen_issue_ids:
+                            new_issues.append(issue)
+                            self.seen_issue_ids.add(issue_id)
+
+                        # EXISTING issue - check if this is a new observation
+                        elif last_obs_time and last_obs_time >= cutoff_time:
+                            new_observations_of_existing_issues.append(issue)
+
+                        # EXISTING but *not* recent → count as duplicate & ignore
+                        else:
+                            duplicate_count += 1
+
                     else:
+                        # Missing issueId case
                         missing_id_count += 1
                         logger.warning(f"Issue missing ID: {issue.get('issueName', 'Unknown')}")
+
                 log_entry['total_count'] = len(issues_data)
                 log_entry['new_count'] = len(new_issues)
+                log_entry['new_observation_count'] = len(new_observations_of_existing_issues)
                 log_entry['duplicate_count'] = duplicate_count
                 log_entry['missing_id_count'] = missing_id_count
-                logger.info(f"Successfully collected {len(issues_data)} issues ({len(new_issues)} new, {duplicate_count} duplicates, {missing_id_count} missing IDs)")
+
+                logger.info(
+                    f"Collected {len(issues_data)} issues "
+                    f"({len(new_issues)} new, "
+                    f"{len(new_observations_of_existing_issues)} new observations of existing issues, "
+                    f"{duplicate_count} duplicates, {missing_id_count} missing IDs)"
+                )
+
+                # Process new issues
                 for issue in new_issues:
                     issue_log = {
                         'timestamp': datetime.now(timezone.utc).isoformat(),
                         'source': 'contrast-security-api',
                         'data_type': 'issue',
                         'log_type': 'contrast-issues',
+                        'event': 'new_issue',
+                        'issue_id': issue.get('issueId'),
+                        'issue_title': issue.get('issueName'),
+                        'issue_status': issue.get('status'),
+                        'cvss_score': issue.get('score'),
+                        'severity': issue.get('severity'),
+                        'last_observation': issue.get('lastObservationTime'),
+                        'application_id': issue.get('applicationId'),
+                        'application_name': issue.get('applicationName'),
+                        'incident_id': issue.get('incidentId'),
+                        'incident_name': issue.get('incidentName'),
+                        'observation_count': issue.get('observationCount'),
+                        'full_data': issue
+                    }
+                    issues_logger.info(json.dumps(issue_log))
+
+
+                # Process *new observations of existing issues*
+                for issue in new_observations_of_existing_issues:
+                    issue_log = {
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                        'source': 'contrast-security-api',
+                        'data_type': 'issue',
+                        'log_type': 'contrast-issues',
+                        'event': 'new_observation',
                         'issue_id': issue.get('issueId'),
                         'issue_title': issue.get('issueName'),
                         'issue_status': issue.get('status'),
@@ -554,7 +614,7 @@ if __name__ == '__main__':
     logger.info("Starting Contrast Data Collector Service")
     logger.info(f"Output mode: stdout (for Fluent Bit collection)")
     logger.info(f"Collection interval: {collector.collection_interval_seconds} seconds")
-    
+
     # Start the scheduler in a background thread
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
