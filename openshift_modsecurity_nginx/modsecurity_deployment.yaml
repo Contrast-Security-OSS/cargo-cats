@@ -15,7 +15,7 @@ spec:
     app.kubernetes.io/instance: modsecurity-crs-proxy
     app.kubernetes.io/name: modsecurity-crs-proxy
   ports:
-    - name: http
+    - name: http-port
       protocol: TCP
       port: 8080
       targetPort: 8080

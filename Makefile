@@ -170,18 +170,6 @@ else
 		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi"
 endif
 
-setup-opensearch:
-	@echo "\nSetting up OpenSearch"
-	@echo "Using OpenSearch URL: $(OPENSEARCH_URL)"
-	@until curl --insecure -s -o /dev/null -w "%{http_code}" $(OPENSEARCH_URL) | grep -q "302"; do \
-        echo "Waiting for OpenSearch..."; \
-        sleep 5; \
-    done
-	curl --insecure -X POST -H "Content-Type: multipart/form-data" -H "osd-xsrf: osd-fetch" "$(OPENSEARCH_URL)/api/saved_objects/_import?overwrite=true" -u admin:Contrast@123! --form file='@contrast-cargo-cats/opesearch_savedobjects.ndjson'
-	curl --insecure -X POST -H 'Content-Type: application/json' -H 'osd-xsrf: osd-fetch' '$(OPENSEARCH_URL)/api/opensearch-dashboards/settings' -u admin:Contrast@123! --data-raw '{"changes":{"defaultRoute":"/app/dashboards#/"}}'
-	sleep 5
-	@echo "OpenSearch setup complete."
-
 validate-env-vars:
 	@echo "Validating environment variables..."
 	@if [ -z "$(CONTRAST__AGENT__TOKEN)" ]; then \
@@ -205,12 +193,14 @@ validate-env-vars:
 	@echo "Required environment variables are set."
 
 define build_service
+	@echo ""
 	@echo "Building $(1)..."
 	cd services/$(1) && \
 	$(ENGINE) build -t $(IMAGE_PREFIX)$(1):latest .
 endef
 
 define push_service
+	@echo ""
 	@echo "Pushing $(IMAGE_PREFIX)$(1):latest..."
 	$(ENGINE) push $(IMAGE_PREFIX)$(1):latest
 endef
@@ -335,6 +325,18 @@ run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-
 		oc apply -f ./openshift_modsecurity_nginx/modsecurity_deployment.yaml -n $(NAMESPACE); \
 		oc set env deployment/modsecurity-crs-proxy BACKEND=http://frontgateservice.$(NAMESPACE).svc.cluster.local:8081 -n $(NAMESPACE); \
 	fi
+
+setup-opensearch:
+	@echo "\nSetting up OpenSearch"
+	@echo "Using OpenSearch URL: $(OPENSEARCH_URL)"
+	@until curl --insecure -s -o /dev/null -w "%{http_code}" $(OPENSEARCH_URL) | grep -q "302"; do \
+        echo "Waiting for OpenSearch..."; \
+        sleep 5; \
+    done
+	curl --insecure -X POST -H "Content-Type: multipart/form-data" -H "osd-xsrf: osd-fetch" "$(OPENSEARCH_URL)/api/saved_objects/_import?overwrite=true" -u admin:Contrast@123! --form file='@contrast-cargo-cats/opesearch_savedobjects.ndjson'
+	curl --insecure -X POST -H 'Content-Type: application/json' -H 'osd-xsrf: osd-fetch' '$(OPENSEARCH_URL)/api/opensearch-dashboards/settings' -u admin:Contrast@123! --data-raw '{"changes":{"defaultRoute":"/app/dashboards#/"}}'
+	sleep 5
+	@echo "OpenSearch setup complete."
 
 deploy-simulation-console: ensure-namespace create-registry-secret build-and-push-simulation add-scc-permission-to-simulation-service-accounts
 	@if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
