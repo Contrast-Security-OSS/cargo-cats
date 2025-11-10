@@ -32,8 +32,8 @@ WORKDIR /app
 COPY --from=builder /app/target/dataservice-0.0.1-SNAPSHOT.jar ./dataservice-0.0.1-SNAPSHOT.jar
 
 # Ensure user owns the application directory
-RUN chown -R ${USER}:0 /app && \
-    chmod -R g=u /app
+RUN chown -R ${USER}:0 /app ${HOME} && \
+    chmod -R g=u ${HOME} /app
 
 # Switch to the non-root user
 USER ${USER}
