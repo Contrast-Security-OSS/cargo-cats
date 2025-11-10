@@ -161,8 +161,8 @@ ifeq ($(CONTAINER_PLATFORM),openshift)
 	@echo "Setting extra env vars for OpenShift..."
 	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator \
 		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi" \
-		CONTRAST_SUPPRESS_SECCOMP_PROFILE="true" \
-		CONTRAST_RUN_INIT_CONTAINER_AS_NON_ROOT="false"
+		CONTRAST_SUPPRESS_SECCOMP_PROFILE="true" #\
+		#CONTRAST_RUN_INIT_CONTAINER_AS_NON_ROOT="false"
 else
 	@echo ""
 	@echo "Setting standard operator env vars..."
@@ -396,8 +396,21 @@ uninstall:
 	helm uninstall contrast-cargo-cats || true
 	helm uninstall simulation-console || true
 	kubectl delete namespace contrast-agent-operator --ignore-not-found
+
+	if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
+		echo "Removing SCC permissions from service accounts"; \
+		oc adm policy remove-scc-from-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n "$(NAMESPACE)" || true; \
+		oc adm policy remove-scc-from-user privileged -z contrast-cargo-cats-falco -n "$(NAMESPACE)" || true; \
+		oc adm policy remove-scc-from-user nonroot-v2 -z opensearch-dashboard-sa -n "$(NAMESPACE)" || true; \
+		oc adm policy remove-scc-from-user privileged -z opensearch-node-sa -n "$(NAMESPACE)" || true; \
+		oc adm policy remove-scc-from-user privileged -z contrast-cargo-cats-ingress-nginx -n "$(NAMESPACE)" || true; \
+		oc adm policy remove-scc-from-user privileged -z contrast-cargo-cats-fluent-bit -n "$(NAMESPACE)" || true; \
+		oc adm policy add-scc-to-user nonroot-v2 -z simulation-console-zapproxy-sa -n $(NAMESPACE) || true; \
+		oc adm policy add-scc-to-user anyuid -z contrast-agent-operator-service-account -n contrast-agent-operator || true; \
+	fi; \
+
 	if [ "$(NAMESPACE)" != "default" ]; then \
-		kubectl delete namespace $(NAMESPACE) || true; \
+		kubectl delete namespace "$(NAMESPACE)" || true; \
 	fi
 
 redeploy: uninstall deploy

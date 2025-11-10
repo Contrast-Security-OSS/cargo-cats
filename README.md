@@ -169,12 +169,12 @@ After deployment completes (may take a few minutes), you can access:
 To remove the application and all associated resources:
 
 ```bash
-make uninstall
+make uninstall [CONTAINER_PLATFORM=openshift]
 ```
 
 or if you supplied a namespace, use:
 ```bash
-make uninstall NAMESPACE=<namespace>
+make uninstall NAMESPACE=<namespace> [CONTAINER_PLATFORM=openshift]
 ```
 
 This will remove the Helm deployment and delete the `contrast-agent-operator` namespace.
