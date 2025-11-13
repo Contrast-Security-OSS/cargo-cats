@@ -146,6 +146,8 @@ This command will:
 5. Deploy OpenSearch to aggregate WAF/EDR logs
 6. Deploy Simulation Console to simulate traffic and provide easy access to tools.
 
+**Note:** The `webhookservice` must be allowed to run as root for command injection exploits to trigger EDR.
+
 ## Accessing the Application
 
 After deployment completes (may take a few minutes), you can access:
