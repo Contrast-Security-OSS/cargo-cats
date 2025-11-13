@@ -158,14 +158,14 @@ endif
 
 ifeq ($(CONTAINER_PLATFORM),openshift)
 	@echo ""
-	@echo "Setting extra env vars for OpenShift..."
+	@echo "Setting extra contrast-agent-operator env vars for OpenShift..."
 	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator \
 		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi" \
-		CONTRAST_SUPPRESS_SECCOMP_PROFILE="true" #\
-		#CONTRAST_RUN_INIT_CONTAINER_AS_NON_ROOT="false"
+		CONTRAST_SUPPRESS_SECCOMP_PROFILE="true" \
+		CONTRAST_RUN_INIT_CONTAINER_AS_NON_ROOT="false"
 else
 	@echo ""
-	@echo "Setting standard operator env vars..."
+	@echo "Setting standard contrast-agent-operator env vars..."
 	kubectl set env -n contrast-agent-operator deployment/contrast-agent-operator \
 		CONTRAST_INITCONTAINER_MEMORY_LIMIT="256Mi"
 endif
@@ -281,6 +281,7 @@ ifeq ($(CONTAINER_PLATFORM),openshift)
 	@echo ""
 	@echo "Permissioning App Service Accounts for SCC use (namespace: $(NAMESPACE))"
 	#oc adm policy add-scc-to-user anyuid -z contrast-cargo-cats-imageservice-sa -n $(NAMESPACE)
+	oc adm policy add-scc-to-user anyuid -z contrast-cargo-cats-webhookservice-sa -n $(NAMESPACE)
 	oc adm policy add-scc-to-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n $(NAMESPACE)
 	oc adm policy add-scc-to-user privileged -z contrast-cargo-cats-falco -n $(NAMESPACE)
 	oc adm policy add-scc-to-user nonroot-v2 -z opensearch-dashboard-sa -n $(NAMESPACE)
@@ -395,7 +396,6 @@ deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm se
 uninstall:
 	helm uninstall contrast-cargo-cats || true
 	helm uninstall simulation-console || true
-	kubectl delete namespace contrast-agent-operator --ignore-not-found
 
 	if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
 		echo "Removing SCC permissions from service accounts"; \
@@ -405,12 +405,17 @@ uninstall:
 		oc adm policy remove-scc-from-user privileged -z opensearch-node-sa -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user privileged -z contrast-cargo-cats-ingress-nginx -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user privileged -z contrast-cargo-cats-fluent-bit -n "$(NAMESPACE)" || true; \
-		oc adm policy add-scc-to-user nonroot-v2 -z simulation-console-zapproxy-sa -n $(NAMESPACE) || true; \
+		oc adm policy add-scc-to-user nonroot-v2 -z simulation-console-zapproxy-sa -n "$(NAMESPACE)" || true; \
 		oc adm policy add-scc-to-user anyuid -z contrast-agent-operator-service-account -n contrast-agent-operator || true; \
-	fi; \
+		oc adm policy remove-scc-from-user privileged -z sysctl-tuner -n openshift-operators || true; \
+		oc delete serviceaccount/sysctl-tuner || true; \
+		oc delete daemonset.apps/sysctl-tuner || true; \
+	fi;
+
+	kubectl delete namespace contrast-agent-operator --ignore-not-found
 
 	if [ "$(NAMESPACE)" != "default" ]; then \
-		kubectl delete namespace "$(NAMESPACE)" || true; \
+		kubectl delete namespace "$(NAMESPACE)" --ignore-not-found; \
 	fi
 
 redeploy: uninstall deploy
