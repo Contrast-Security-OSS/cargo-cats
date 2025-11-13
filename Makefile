@@ -333,7 +333,7 @@ setup-opensearch:
         echo "Waiting for OpenSearch..."; \
         sleep 5; \
     done
-	curl --insecure -X POST -H "Content-Type: multipart/form-data" -H "osd-xsrf: osd-fetch" "$(OPENSEARCH_URL)/api/saved_objects/_import?overwrite=true" -u admin:Contrast@123! --form file='@contrast-cargo-cats/opesearch_savedobjects.ndjson'
+	curl --insecure -X POST -H "Content-Type: multipart/form-data" -H "osd-xsrf: osd-fetch" "$(OPENSEARCH_URL)/api/saved_objects/_import?overwrite=true" -u admin:Contrast@123! --form file='@contrast-cargo-cats/opensearch_savedobjects.ndjson'
 	curl --insecure -X POST -H 'Content-Type: application/json' -H 'osd-xsrf: osd-fetch' '$(OPENSEARCH_URL)/api/opensearch-dashboards/settings' -u admin:Contrast@123! --data-raw '{"changes":{"defaultRoute":"/app/dashboards#/"}}'
 	sleep 5
 	@echo "OpenSearch setup complete."
