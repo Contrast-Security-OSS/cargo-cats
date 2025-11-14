@@ -166,6 +166,9 @@ After deployment completes (may take a few minutes), you can access:
   - Username: `admin`
   - Password: `Contrast@123!`
 
+## Reset Incidents and Issues
+IN the Simulation Console, click on the "trash can" in the top right (if it is available) from here you can delete incident and issue data from Contrast.
+
 ## Cleanup
 
 To remove the application and all associated resources:
