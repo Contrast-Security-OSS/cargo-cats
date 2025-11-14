@@ -172,7 +172,7 @@ In the Simulation Console, click on the "trash can" in the top right (if it is a
 
 ## Delete OpenSearch logs
 
-If required, you can expose your `opensearch-node` service and run the following to check indices and then select which to delete:
+If required, you can expose your `opensearch-node` service and run the following to check indices for select which to delete:
 ```bash
 curl -u <username>:<password> "https://<opensearch-node.domain>/_cat/indices?v"
 ```
