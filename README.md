@@ -167,9 +167,11 @@ After deployment completes (may take a few minutes), you can access:
   - Password: `Contrast@123!`
 
 ## Reset Incidents and Issues
+
 In the Simulation Console, click on the "trash can" in the top right (if it is available) from here you can delete incident and issue data from Contrast.
 
 ## Delete OpenSearch logs
+
 If required, you can expose your `opensearch-node` service and run the following to check indices and then select which to delete:
 ```bash
 curl -u <username>:<password> "https://<opensearch-node.domain>/_cat/indices?v"
