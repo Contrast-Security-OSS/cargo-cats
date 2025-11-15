@@ -15,7 +15,7 @@
 {{- $cargoHost = printf "%s.localhost" .Values.cargoHostName -}}
 {{- end -}}
 
-{{- if .Values.opensearchHostName }}
+{{- if .Values.createOpensearchHost }}
 {{- $opensearchHost = printf "%s-%s.%s" .Values.opensearchHostName .Release.Namespace .Values.clusterDomain -}}
 {{- else }}
 {{- $opensearchHost = printf "%s.localhost" .Values.opensearchHostName -}}
