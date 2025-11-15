@@ -151,7 +151,7 @@ deploy-contrast: ensure-namespace deploy-contrast-openshift
 	@echo "Applying Contrast Agent Operator Configuration..."
 
 ifeq ($(NAMESPACE),default)
-	kubectl apply -f contrast-agent-operator-config.yaml -n contrast-agent-operator
+	kubectl apply -f contrast-agent-operator-config.yaml
 else
 	@sed "s/namespace: default/namespace: $(NAMESPACE)/g" contrast-agent-operator-config.yaml | kubectl apply -f -
 endif
