@@ -19,10 +19,11 @@ spec:
       labels:
         app: {{ .Values.docservice.name }}
     spec:
+      serviceAccount: {{ include "contrast-cargo-cats.serviceAccountName" . }}
       containers:
         - name: {{ .Values.docservice.name }}
-          image: {{ .Values.docservice.image }} 
-          imagePullPolicy: Never
+          image: "{{ .Values.imagePrefix }}{{ .Values.docservice.image }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
           - name: CONTRAST__APPLICATION__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.docservice.name }}'
@@ -50,7 +51,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Values.docservice.name }}
-  namespace: default
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     app: {{ .Values.docservice.name }}

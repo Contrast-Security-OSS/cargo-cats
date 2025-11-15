@@ -1,0 +1,228 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: modsecurity-crs-proxy-sa
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: modsecurity-crs-proxy
+  labels:
+    app.kubernetes.io/instance: modsecurity-crs-proxy
+    app.kubernetes.io/name: modsecurity-crs-proxy
+spec:
+  selector:
+    app.kubernetes.io/instance: modsecurity-crs-proxy
+    app.kubernetes.io/name: modsecurity-crs-proxy
+  ports:
+    - name: http-port
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: modsecurity-nginx-config
+data:
+  default.conf.template: |-
+    # Nginx configuration for both HTTP and SSL
+
+    server_tokens ${SERVER_TOKENS};
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+
+    server {
+        listen ${PORT} default_server;
+
+        server_name ${SERVER_NAME};
+        set $upstream ${BACKEND};
+        set $always_redirect ${NGINX_ALWAYS_TLS_REDIRECT};
+
+        PROXY_SSL_CONFIG
+
+        # Exact match for root "/" - static HTML/JS
+        location = / {
+            root /usr/share/nginx/html;
+            index index.html index.htm;
+            default_type text/html;
+            client_max_body_size 0;
+
+            # Disable ModSecurity for root
+            modsecurity off;
+
+            include includes/cors.conf;
+            include includes/proxy_backend.conf;
+        }
+
+        # Catch-all for all other paths - dynamic endpoints
+        location / {
+            modsecurity on;
+
+            include includes/cors.conf;
+            include includes/proxy_backend.conf;
+        }
+
+        include includes/location_common.conf;
+    }
+
+    server {
+        listen ${SSL_PORT} ssl;
+
+        server_name ${SERVER_NAME};
+        set $upstream ${BACKEND};
+
+        ssl_certificate ${SSL_CERT};
+        ssl_certificate_key ${SSL_CERT_KEY};
+        ssl_session_timeout 1d;
+        ssl_session_cache shared:MozSSL:10m;
+        ssl_session_tickets off;
+
+        ssl_dhparam /etc/ssl/certs/dhparam-${SSL_DH_BITS}.pem;
+
+        ssl_protocols ${SSL_PROTOCOLS};
+        ssl_ciphers ${SSL_CIPHERS};
+        ssl_prefer_server_ciphers ${SSL_PREFER_CIPHERS};
+
+        ssl_stapling ${SSL_OCSP_STAPLING};
+        ssl_stapling_verify ${SSL_OCSP_STAPLING};
+
+        ssl_verify_client ${SSL_VERIFY};
+        ssl_verify_depth ${SSL_VERIFY_DEPTH};
+
+        PROXY_SSL_CONFIG
+
+        # Exact match for root "/" - static HTML/JS
+        location = / {
+            root /usr/share/nginx/html;
+            index index.html index.htm;
+            default_type text/html;
+            client_max_body_size 0;
+
+            # Disable ModSecurity for root
+            modsecurity off;
+
+            include includes/cors.conf;
+            include includes/proxy_backend.conf;
+        }
+
+        # Catch-all for all other paths - dynamic endpoints
+        location / {
+            modsecurity on;
+
+            include includes/cors.conf;
+            include includes/proxy_backend.conf;
+        }
+
+        include includes/location_common.conf;
+    }
+  proxy_backend.conf.template: |-
+    proxy_set_header Host $host;
+    proxy_set_header Proxy "";
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header ${REAL_IP_PROXY_HEADER} $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Port 443;
+    proxy_set_header X-Forwarded-Proto https;
+
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_connect_timeout 60s;
+    proxy_read_timeout 36000s;
+    proxy_redirect off;
+
+    proxy_pass_header Authorization;
+    proxy_pass $upstream;
+
+    SET_REAL_IP_FROM
+    real_ip_header ${REAL_IP_HEADER};
+    real_ip_recursive ${REAL_IP_RECURSIVE};
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modsecurity-crs-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: modsecurity-crs-proxy
+      app.kubernetes.io/name: modsecurity-crs-proxy
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: modsecurity-crs-proxy
+        app.kubernetes.io/name: modsecurity-crs-proxy
+    spec:
+      containers:
+      - env:
+        - name: BACKEND
+          value: http://frontgateservice.cargo-cats.svc.cluster.local:8081
+        - name: PORT
+          value: "8080"
+        - name: ROUTE_INGRESS_PORT
+          value: "443"
+        - name: ROUTE_INGRESS_PROTOCOL
+          value: "https"
+        - name: SERVER_TOKENS
+          value: "off"
+        - name: MODSEC_RULE_ENGINE
+          value: DetectionOnly
+        - name: PARANOIA
+          value: "3"
+        - name: BLOCKING_PARANOIA
+          value: "3"
+        - name: CORS_HEADER_403_CONTENT_TYPE
+          value: text/html
+        - name: MODSEC_RESP_BODY_LIMIT
+          value: "10485760"
+        image: owasp/modsecurity-crs:4.11.0-nginx-202502011102
+        imagePullPolicy: IfNotPresent
+        name: modsecurity-crs-proxy
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        securityContext:
+          privileged: true
+          runAsGroup: 101
+          runAsUser: 101
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/nginx/templates/conf.d/default.conf.template
+          name: nginx-config
+          subPath: default.conf.template
+        - mountPath: /etc/nginx/templates/includes/proxy_backend.conf.template
+          name: nginx-config
+          subPath: proxy_backend.conf.template
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: modsecurity-crs-proxy-sa
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: default.conf.template
+            path: default.conf.template
+          - key: proxy_backend.conf.template
+            path: proxy_backend.conf.template
+          name: modsecurity-nginx-config
+        name: nginx-config

@@ -11,7 +11,7 @@ data:
             <name>Default</name>
             <desc/>
             <inscope>true</inscope>
-            <incregexes>http://cargocats.localhost.*</incregexes>
+            <incregexes>{{ .Values.consoleui.vulnAppUrl }}.*</incregexes>
             <tech>
                 <include>Db</include>
                 <include>Db.CouchDB</include>
@@ -62,16 +62,16 @@ data:
             <authentication>
                 <type>2</type>
                 <strategy>POLL_URL</strategy>
-                <pollurl>http://cargocats.localhost/dashboard</pollurl>
+                <pollurl>{{ .Values.consoleui.vulnAppUrl }}/dashboard</pollurl>
                 <polldata/>
                 <pollfreq>60</pollfreq>
                 <pollunits>REQUESTS</pollunits>
                 <loggedin>\Q 200\E</loggedin>
                 <loggedout>\Q 302\E</loggedout>
                 <form>
-                    <loginurl>http://cargocats.localhost/login</loginurl>
+                    <loginurl>{{ .Values.consoleui.vulnAppUrl }}/login</loginurl>
                     <loginbody>username={%username%}&amp;password={%password%}</loginbody>
-                    <loginpageurl>http://cargocats.localhost/login</loginpageurl>
+                    <loginpageurl>{{ .Values.consoleui.vulnAppUrl }}/login</loginpageurl>
                 </form>
             </authentication>
             <users>
@@ -92,6 +92,12 @@ data:
             </authorization>
         </context>
     </configuration>
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "{{ .Release.Name }}-{{ .Values.zapproxy.name }}-sa"
+  namespace: {{ .Release.Namespace | default "default" }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -118,17 +124,18 @@ spec:
             - "{{ $host }}"
 {{- end }}
 {{- end }}
+      serviceAccount: "{{ .Release.Name }}-{{ .Values.zapproxy.name }}-sa"
       containers:
         - name: {{ .Values.zapproxy.name }}
           image: {{ .Values.zapproxy.image }}
-          imagePullPolicy: Always
-          command: ["zap.sh", "-daemon", "-host", "0.0.0.0", "-port", "80", "-config", "api.addrs.addr.name=.*", "-config", "api.addrs.addr.regex=true","-config", "api.disablekey=true" ]
+          imagePullPolicy: IfNotPresent
+          command: ["zap.sh", "-daemon", "-host", "0.0.0.0", "-port", "8080", "-config", "api.addrs.addr.name=.*", "-config", "api.addrs.addr.regex=true","-config", "api.disablekey=true" ]
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
             runAsNonRoot: true
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: api
           volumeMounts:
             - name: zap-context
@@ -159,5 +166,5 @@ spec:
   ports:
     - protocol: TCP
       name: api
-      port: 80
-      targetPort: 80
+      port: 8080
+      targetPort: 8080

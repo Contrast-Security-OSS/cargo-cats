@@ -68,10 +68,21 @@ Before you can deploy Cargo Cats, ensure you have the following installed:
    - Go to Settings → Kubernetes → Enable Kubernetes
    - Wait for Kubernetes to start (green indicator)
 
+or
+
+1. **OpenShift**
+   - Installed and ready for deployments
+   - Your user account must have cluster admin privileges
+
+plus
+
 2. **Helm** (Kubernetes package manager)
    ```bash
    # macOS with Homebrew
    brew install helm
+
+   # for ubuntu via snap
+   sudo snap install helm --classic
    
    # Or download from: https://helm.sh/docs/intro/install/
    ```
@@ -105,8 +116,14 @@ Before you can deploy Cargo Cats, ensure you have the following installed:
    CONTRAST__API__AUTHORIZATION=your-authorization-header
    ```
    
-   
    **Note**: The optional `CONTRAST__API__KEY` and `CONTRAST__API__AUTHORIZATION` variables enable ADR data fetching into OpenSearch and ADR deletion functionality when deployed in certain environments. These are not required for basic operation.
+
+   **Note**: if using OpenShift and an external image registry, also provide:
+   ```bash
+   # registry
+   REG_API_KEY=your_reg_api_key
+   REG_USERNAME=your_reg_username
+   ```
 
 ## Deployment
 
@@ -116,6 +133,11 @@ Once you have completed the setup, deploy the application with a single command:
 make deploy
 ```
 
+or for OpenShift:
+```bash
+make deploy CONTAINER_PLATFORM=openshift EXTERNAL_REGISTRY=true REGISTRY=<external_registry> ENGINE=podman [NAMESPACE=cargo-cats]
+```
+
 This command will:
 1. Validate your environment variables
 2. Build all Docker containers for the microservices
@@ -123,6 +145,8 @@ This command will:
 4. Deploy the security monitoring tools (WAF, Falco, Contrast ADR)
 5. Deploy OpenSearch to aggregate WAF/EDR logs
 6. Deploy Simulation Console to simulate traffic and provide easy access to tools.
+
+**Note:** The `webhookservice` must be allowed to run as root for command injection exploits to succeed and trigger EDR.
 
 ## Accessing the Application
 
@@ -142,15 +166,35 @@ After deployment completes (may take a few minutes), you can access:
   - Username: `admin`
   - Password: `Contrast@123!`
 
+## Reset Incidents and Issues
+
+In the Simulation Console, click on the "trash can" in the top right (if it is available) from here you can delete incident and issue data from Contrast.
+
+## Delete OpenSearch logs
+
+If required, you can expose your `opensearch-node` service and run the following to check indices for select which to delete:
+```bash
+curl -u <username>:<password> "https://<opensearch-node.domain>/_cat/indices?v"
+```
+Delete the index with this command:
+```bash
+curl -u <username>:<password> -X DELETE "https://<opensearch-node.domain>/<index_name>"
+```
+
 ## Cleanup
 
 To remove the application and all associated resources:
 
 ```bash
-make uninstall
+make uninstall [CONTAINER_PLATFORM=openshift]
 ```
 
-This will remove the Helm deployment and delete the contrast-agent-operator namespace.
+or if you supplied a namespace, use:
+```bash
+make uninstall NAMESPACE=<namespace> [CONTAINER_PLATFORM=openshift]
+```
+
+This will remove the Helm deployment and delete the `contrast-agent-operator` namespace.
 
 ---
 

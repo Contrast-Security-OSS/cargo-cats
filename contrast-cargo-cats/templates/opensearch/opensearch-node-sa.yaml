@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: opensearch-node-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "contrast-cargo-cats.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}

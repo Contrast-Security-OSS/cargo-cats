@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: opensearch-dashboard-config
+  namespace: {{ .Release.Namespace }}
 data:
   opensearch_dashboards.yml: |
     server.host: 0.0.0.0
@@ -10,3 +11,4 @@ data:
     opensearch.username: admin
     opensearch.password: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
     opensearch_security.multitenancy.enabled: false
+    opensearchDashboards.index: ".kibana"
