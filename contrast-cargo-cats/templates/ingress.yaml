@@ -88,7 +88,7 @@ spec:
 #          service:
 #            name: {{ .Values.imageservice.name }}
 #            port:
-#              number: 80
+#              number: 5001
 #  - host: labelservice.localhost
 #    http:
 #      paths:
