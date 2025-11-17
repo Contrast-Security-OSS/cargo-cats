@@ -306,7 +306,7 @@ ifeq ($(CONTAINER_PLATFORM),openshift)
 	@echo ""
 	@echo "Setting max_map_count for OpenSearch"
 	oc adm policy add-scc-to-user privileged -z sysctl-tuner -n openshift-operators
-	oc apply -f sysctl-tuner.yaml
+	oc apply -f openshift/sysctl-tuner.yaml
 else
 	@echo "Skipping sysctl (not on OpenShift)"
 endif
@@ -323,7 +323,7 @@ run-helm: ensure-namespace build-and-push-cargo-cats create-registry-secret add-
 	@if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
 		echo ""; \
 		echo "Deploying nginx-modsecurity in (namespace: $(NAMESPACE))"; \
-		oc apply -f ./openshift_modsecurity_nginx/modsecurity_deployment.yaml -n $(NAMESPACE); \
+		oc apply -f ./openshift/modsecurity_nginx/modsecurity_deployment.yaml -n $(NAMESPACE); \
 		oc set env deployment/modsecurity-crs-proxy BACKEND=http://frontgateservice.$(NAMESPACE).svc.cluster.local:8081 -n $(NAMESPACE); \
 	fi
 
