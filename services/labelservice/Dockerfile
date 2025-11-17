@@ -17,7 +17,8 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 # Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
+RUN chown -R nodejs:0 /app && \
+    chmod -R g=u /app
 
 # Switch to non-root user
 USER nodejs

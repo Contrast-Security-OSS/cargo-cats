@@ -16,7 +16,7 @@ import java.util.Collections;
 @Service
 public class ImageServiceProxy {
 
-    @Value("${imageservice.url:http://imageservice:80}")
+    @Value("${imageservice.url:http://imageservice:5001}")
     private String imageServiceUrl;
 
     private final RestTemplate restTemplate;

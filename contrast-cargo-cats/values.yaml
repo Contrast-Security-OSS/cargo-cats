@@ -2,6 +2,33 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+serviceAccount:
+  create: false    # Helm will create a ServiceAccount if true
+  name: ""        # optional override; blank means use default fullname
+
+imagePullPolicy: Never
+
+imagePrefix: ""   # default blank
+
+imagePullSecretName: ""
+
+modsecurityProxy:
+  name: modsecurity-crs-proxy
+
+# for router
+createRoutes: false
+
+# for Ingress
+createIngess: true
+appHostName: app
+cargoHostName: cargocats
+opensearchHostName: opensearch
+createAppHost: false
+createCargoCatsHost: false
+createOpensearchHost: false
+# Set by user or set automatically via CI:
+clusterDomain: ""   # Example: apps.mycluster.example.com
+
 mysql:
   rootPassword: cargocats
   database: db
@@ -9,7 +36,7 @@ mysql:
   password: cargocats
 
 cargocatsDataservice:
-  image: dataservice:latest 
+  image: dataservice:latest
   name: dataservice
 
 frontgateservice:
@@ -17,7 +44,7 @@ frontgateservice:
   name: frontgateservice
 
 webhookservice:
-  image: webhookservice:latest 
+  image: webhookservice:latest
   name: webhookservice
 
 imageservice:

@@ -14,10 +14,14 @@ spec:
       labels:
         app: {{ .Values.contrastdatacollector.name }}
     spec:
+      {{- if .Values.imagePullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecretName }}
+      {{- end }}
       containers:
       - name: contrastdatacollector
-        image: {{ .Values.contrastdatacollector.image }}
-        imagePullPolicy: Never
+        image: "{{ .Values.imagePrefix }}{{ .Values.contrastdatacollector.image }}"
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
         ports:
         - containerPort: 5000
         env:

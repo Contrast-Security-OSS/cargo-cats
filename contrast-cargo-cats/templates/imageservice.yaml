@@ -1,3 +1,11 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: '{{.Release.Name}}-{{ .Values.imageservice.name }}-sa'
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "contrast-cargo-cats.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 ---
 
 apiVersion: apps/v1
@@ -19,17 +27,26 @@ spec:
       labels:
         app: {{ .Values.imageservice.name }}
     spec:
+      #serviceAccount: {{ include "contrast-cargo-cats.serviceAccountName" . }}
+      serviceAccount: '{{.Release.Name}}-{{ .Values.imageservice.name }}-sa'
+      {{- if .Values.imagePullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecretName }}
+      {{- end}}
       containers:
         - name: {{ .Values.imageservice.name }}
-          image: {{ .Values.imageservice.image }} 
-          imagePullPolicy: Never
+          image: "{{ .Values.imagePrefix }}{{ .Values.imageservice.image }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
           - name: CONTRAST__APPLICATION__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.imageservice.name }}'
           - name: CONTRAST__SERVER__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.imageservice.name }}-agent'
+          #securityContext:
+          #  runAsUser: 0
+          #  runAsGroup: 0
           ports:
-            - containerPort: 80
+            - containerPort: 5001
           resources:
             requests:
               memory: "128Mi"
@@ -46,15 +63,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Values.imageservice.name }}
-  namespace: default
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     app: {{ .Values.imageservice.name }}
   ports:
     - name: http-port      
       protocol: TCP
-      port: 80           
-      targetPort: 80     
+      port: 5001         
+      targetPort: 5001
 
 
 ---

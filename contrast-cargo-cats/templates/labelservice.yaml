@@ -17,10 +17,11 @@ spec:
       labels:
         app: {{ .Values.labelservice.name }}
     spec:
+      serviceAccount: {{ include "contrast-cargo-cats.serviceAccountName" . }}
       containers:
         - name: {{ .Values.labelservice.name }}
-          image: {{ .Values.labelservice.image }} 
-          imagePullPolicy: Never
+          image: "{{ .Values.imagePrefix }}{{ .Values.labelservice.image }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
           - name: CONTRAST__APPLICATION__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.labelservice.name }}'
@@ -42,7 +43,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: labelservice
-  namespace: default
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     app: {{ .Values.labelservice.name }}

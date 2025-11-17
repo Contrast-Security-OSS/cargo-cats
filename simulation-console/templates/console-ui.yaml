@@ -40,6 +40,20 @@ roleRef:
 
 ---
 # ---------------------------------------------
+# ConfigMap
+# ---------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.consoleui.name }}-config
+  namespace: {{ .Release.Namespace | default "default" }}
+data:
+  app.py: |-
+{{ tpl (.Files.Get "files/app.py") . | indent 4 }}
+  index.html: |-
+{{ tpl (.Files.Get "files/index.html") . | indent 4 }}
+---
+# ---------------------------------------------
 # Deployment
 # ---------------------------------------------
 apiVersion: apps/v1
@@ -68,13 +82,24 @@ spec:
             - "{{ $host }}"
 {{- end }}
 {{- end }}
+      {{- if .Values.imagePullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecretName }}
+      {{- end}}
       containers:
         - name: {{ .Values.consoleui.name }}
-          image: {{ .Values.consoleui.image }}
-          imagePullPolicy: Never
+          image: "{{ .Values.imagePrefix }}{{ .Values.consoleui.image }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           ports:
             - containerPort: 5000
               name: http
+          volumeMounts:
+            - name: console-ui-config
+              mountPath: /app/app.py
+              subPath: app.py
+            - name: console-ui-config
+              mountPath: /app/templates/index.html
+              subPath: index.html
           env:
             - name: CONTRAST__AGENT__TOKEN
               value: {{ .Values.consoleui.contrastApiToken | default "" | quote }}
@@ -97,6 +122,11 @@ spec:
               memory: "512Mi"
               cpu: "500m"
               ephemeral-storage: "2Gi"
+      volumes:
+        - name: console-ui-config
+          configMap:
+            name: {{ .Release.Name }}-{{ .Values.consoleui.name }}-config
+            defaultMode: 0755
 ---
 # ---------------------------------------------
 # Service
