@@ -362,6 +362,7 @@ deploy-simulation-console: ensure-namespace create-registry-secret build-and-pus
 		--set consoleui.vulnAppUrl="$(VULN_APP_URL)" \
 		--set consoleui.opensearchUrl="$(OPENSEARCH_URL)" \
 		$$INGRESS_ARG \
+		$(HELM_CREATE_ROUTE) $(HELM_CREATE_INGRESS) \
 		--set contrastdatacollector.contrastUniqName="$(CONTRAST__UNIQ__NAME)" \
 		--set contrastdatacollector.contrastApiToken="$(CONTRAST__AGENT__TOKEN)" \
 		--set contrastdatacollector.contrastApiKey="$(CONTRAST__API__KEY)" \

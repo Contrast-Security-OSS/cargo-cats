@@ -1,3 +1,4 @@
+{{- if .Values.createRoutes }}
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -11,3 +12,4 @@ spec:
     targetPort: http
   tls:
     termination: edge
+{{- end }}

@@ -1,3 +1,4 @@
+{{- if .Values.createIngress }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -28,3 +29,4 @@ spec:
                 name: console-ui
                 port:
                   number: 5000
+{{- end }}

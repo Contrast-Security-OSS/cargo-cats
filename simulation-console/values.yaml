@@ -16,6 +16,12 @@ imagePullPolicy: Never
 
 imagePullSecretName: ""
 
+# for router
+createRoutes: false
+
+# for Ingress
+createIngess: true
+
 consoleui:
   image: console-ui:latest
   name: console-ui
