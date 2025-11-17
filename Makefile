@@ -400,14 +400,15 @@ uninstall:
 
 	if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
 		echo "Removing SCC permissions from service accounts"; \
+		oc adm policy remove-scc-from-user anyuid -z contrast-cargo-cats-webhookservice-sa -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user nonroot-v2 -z contrast-cargo-cats-ingress-nginx-admission -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user privileged -z contrast-cargo-cats-falco -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user nonroot-v2 -z opensearch-dashboard-sa -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user privileged -z opensearch-node-sa -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user privileged -z contrast-cargo-cats-ingress-nginx -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user privileged -z contrast-cargo-cats-fluent-bit -n "$(NAMESPACE)" || true; \
-		oc adm policy add-scc-to-user nonroot-v2 -z simulation-console-zapproxy-sa -n "$(NAMESPACE)" || true; \
-		oc adm policy add-scc-to-user anyuid -z contrast-agent-operator-service-account -n contrast-agent-operator || true; \
+		oc adm policy remove-scc-from-user nonroot-v2 -z simulation-console-zapproxy-sa -n "$(NAMESPACE)" || true; \
+		oc adm policy remove-scc-from-user anyuid -z contrast-agent-operator-service-account -n contrast-agent-operator || true; \
 		oc adm policy remove-scc-from-user privileged -z sysctl-tuner -n openshift-operators || true; \
 		oc delete serviceaccount/sysctl-tuner || true; \
 		oc delete daemonset.apps/sysctl-tuner || true; \
