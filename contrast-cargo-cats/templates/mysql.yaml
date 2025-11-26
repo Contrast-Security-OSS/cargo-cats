@@ -14,6 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: '{{.Release.Name}}-db'
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -25,9 +26,11 @@ spec:
       labels:
         app: '{{.Release.Name}}-db'
     spec:
+      serviceAccountName: {{ include "contrast-cargo-cats.serviceAccountName" . }}
       containers:
       - image: mysql:9
         name: mysql
+        imagePullPolicy: IfNotPresent
         env:
           # Use secret in real usage
         - name: MYSQL_ROOT_PASSWORD
@@ -67,6 +70,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mysql-init-script
+  namespace: {{ .Release.Namespace }}
   labels:
     app: mysql-cargo-cats # Label to associate with your app
 data:

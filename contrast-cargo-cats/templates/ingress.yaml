@@ -1,3 +1,26 @@
+{{- if .Values.createIngress }}
+{{- $appHost := "" -}}
+{{- $cargoHost := "" -}}
+{{- $opensearchHost := "" -}}
+
+{{- if .Values.createAppHost }}
+{{- $appHost = printf "%s-%s.%s" .Values.appHostName .Release.Namespace .Values.clusterDomain -}}
+{{- else }}
+{{- $appHost = printf "%s.localhost" .Values.appHostName -}}
+{{- end -}}
+
+{{- if .Values.createCargoCatsHost }}
+{{- $cargoHost = printf "%s-%s.%s" .Values.cargoHostName .Release.Namespace .Values.clusterDomain -}}
+{{- else }}
+{{- $cargoHost = printf "%s.localhost" .Values.cargoHostName -}}
+{{- end -}}
+
+{{- if .Values.createOpensearchHost }}
+{{- $opensearchHost = printf "%s-%s.%s" .Values.opensearchHostName .Release.Namespace .Values.clusterDomain -}}
+{{- else }}
+{{- $opensearchHost = printf "%s.localhost" .Values.opensearchHostName -}}
+{{- end -}}
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -6,7 +29,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: app.localhost
+  - host: {{ $appHost }}
     http:
       paths:
       - path: /
@@ -16,7 +39,7 @@ spec:
             name: {{ .Values.frontgateservice.name }}
             port:
               number: 8081
-  - host: cargocats.localhost
+  - host: {{ $cargoHost }}
     http:
       paths:
       - path: /
@@ -26,7 +49,7 @@ spec:
             name: {{ .Values.frontgateservice.name }}
             port:
               number: 8081
-  - host: opensearch.localhost
+  - host: {{ $opensearchHost }}
     http:
       paths:
       - path: /
@@ -65,7 +88,7 @@ spec:
 #          service:
 #            name: {{ .Values.imageservice.name }}
 #            port:
-#              number: 80
+#              number: 5001
 #  - host: labelservice.localhost
 #    http:
 #      paths:
@@ -88,4 +111,4 @@ spec:
 #              number: 5000
 
 ---
-
+{{- end }}

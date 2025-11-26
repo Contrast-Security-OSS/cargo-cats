@@ -16,5 +16,5 @@ dependencies:
   repository: "https://fluent.github.io/helm-charts"
 
 - name: falco 
-  version: "5.0.0"
+  version: "7.0.0"
   repository: "https://falcosecurity.github.io/charts"

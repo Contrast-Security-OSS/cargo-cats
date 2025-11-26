@@ -1,6 +1,19 @@
 FROM python:3.9-slim
 
+# Build args for user and home
+ARG UID=1001
+ARG GID=1001
+ARG USER=appuser
+ARG HOME=/home/appuser
+
+# Set HOME environment variable
+ENV HOME=${HOME}
+
 WORKDIR /app
+
+# Create non-root user
+RUN groupadd -g ${GID} ${USER} \
+    && useradd -m -u ${UID} -g ${GID} -d ${HOME} ${USER}
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,11 +27,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app.py .
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
 # Change ownership of directories
-RUN chown -R appuser:appuser /app
+RUN chown -R ${USER}:0 /app ${HOME} && \
+    chmod -R g=u /app ${HOME}
 
 # Switch to non-root user
 USER appuser
