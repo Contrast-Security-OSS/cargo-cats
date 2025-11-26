@@ -96,7 +96,7 @@ endif
 ensure-namespace:
 	@echo ""
 	@echo "Ensuring namespace $(NAMESPACE) exists..."
-	kubectl get namespace $(NAMESPACE) >/dev/null 2>&1 || kubectl create namespace $(NAMESPACE)
+	kubectl create namespace "$(NAMESPACE)" --dry-run=client -o yaml | kubectl apply -f -
 
 ensure-agent-operator-namespace:
 	@echo ""
@@ -149,12 +149,8 @@ deploy-contrast: ensure-namespace deploy-contrast-openshift
 
 	@echo ""
 	@echo "Applying Contrast Agent Operator Configuration..."
-
-ifeq ($(NAMESPACE),default)
 	kubectl apply -f contrast-agent-operator-config.yaml
-else
-	@sed "s/namespace: default/namespace: $(NAMESPACE)/g" contrast-agent-operator-config.yaml | kubectl apply -f -
-endif
+	kubectl apply -f contrast-agent-operator-injectors.yaml -n "$(NAMESPACE)"
 
 ifeq ($(CONTAINER_PLATFORM),openshift)
 	@echo ""

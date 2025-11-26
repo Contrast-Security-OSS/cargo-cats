@@ -107,8 +107,8 @@ plus
    CONTRAST__AGENT__TOKEN=your-contrast-agent-token
    CONTRAST__UNIQ__NAME=your-unique-name
    ```
-      **Note**: The `CONTRAST__UNIQ__NAME` value will be used to ensure your application and server names are unique in the Contrast UI, preventing conflicts with other deployments.
-
+   
+   **Note**: The `CONTRAST__UNIQ__NAME` value will be used to ensure your application and server names are unique in the Contrast UI, preventing conflicts with other deployments.
 
    **Optional**: For advanced features, you can also set these additional environment variables:
    ```bash
