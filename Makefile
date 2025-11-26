@@ -410,8 +410,8 @@ uninstall:
 		oc adm policy remove-scc-from-user nonroot-v2 -z simulation-console-zapproxy-sa -n "$(NAMESPACE)" || true; \
 		oc adm policy remove-scc-from-user anyuid -z contrast-agent-operator-service-account -n contrast-agent-operator || true; \
 		oc adm policy remove-scc-from-user privileged -z sysctl-tuner -n openshift-operators || true; \
-		oc delete serviceaccount/sysctl-tuner || true; \
-		oc delete daemonset.apps/sysctl-tuner || true; \
+		oc delete serviceaccount/sysctl-tuner -n openshift-operators || true; \
+		oc delete daemonset.apps/sysctl-tuner -n openshift-operators || true; \
 	fi;
 
 	kubectl delete namespace contrast-agent-operator --ignore-not-found
