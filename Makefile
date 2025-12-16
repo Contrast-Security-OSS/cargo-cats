@@ -391,8 +391,8 @@ deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm se
 	@echo ""
 
 uninstall:
-	helm uninstall contrast-cargo-cats || true
-	helm uninstall simulation-console || true
+	helm uninstall contrast-cargo-cats -n "$(NAMESPACE)" || true
+	helm uninstall simulation-console -n "$(NAMESPACE)" || true
 
 	if [ "$(CONTAINER_PLATFORM)" = "openshift" ]; then \
 		echo "Removing SCC permissions from service accounts"; \
