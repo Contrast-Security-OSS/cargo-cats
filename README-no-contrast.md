@@ -33,7 +33,6 @@ Then deploy the Contrast operator, create the authentication secret, and apply y
 
 ```bash
 kubectl apply -f https://github.com/Contrast-Security-OSS/agent-operator/releases/latest/download/install-prod.yaml && \
-kubectl -n contrast-agent-operator delete secret default-agent-connection-secret --ignore-not-found && \
 kubectl -n contrast-agent-operator create secret generic default-agent-connection-secret --from-literal=token="$CONTRAST__AGENT__TOKEN" && \
 kubectl apply -f contrast-agent-operator-config.yaml
 ```

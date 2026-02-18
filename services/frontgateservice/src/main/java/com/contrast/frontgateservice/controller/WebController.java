@@ -3,6 +3,7 @@ package com.contrast.frontgateservice.controller;
 import com.contrast.frontgateservice.entity.User;
 import com.contrast.frontgateservice.service.UserService;
 import com.contrast.frontgateservice.service.WebhookServiceProxy;
+import com.contrast.frontgateservice.service.ReportServiceProxy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,9 @@ public class WebController {
 
     @Autowired
     private WebhookServiceProxy webhookServiceProxy;
+
+    @Autowired
+    private ReportServiceProxy reportServiceProxy;
 
     // ==================== PUBLIC PAGES ====================
     
@@ -183,5 +187,31 @@ public class WebController {
         }
         
         return "webhooks";
+    }
+
+    @GetMapping("/reports")
+    public String reports(Model model) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        String sanitizedUsername = username.replaceAll("[\\${}]", "");
+        
+        logger.info("Serving reports page for authenticated user");
+        logger.debug("Reports page access by user: {}", sanitizedUsername);
+        
+        model.addAttribute("username", username);
+        
+        // Check report service health and add status to model
+        try {
+            logger.debug("Checking report service health");
+            reportServiceProxy.healthCheck();
+            logger.info("Report service is online");
+            model.addAttribute("reportServiceStatus", "Online");
+        } catch (Exception e) {
+            logger.warn("Report service is offline: {}", e.getMessage());
+            logger.debug("Report service health check error:", e);
+            model.addAttribute("reportServiceStatus", "Offline");
+        }
+        
+        return "reports";
     }
 }

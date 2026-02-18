@@ -91,12 +91,17 @@ build-docservice:
 	cd services/docservice && \
 	docker build -t docservice:latest  .
 
+build-reportservice:
+	@echo "Building reportservice..."
+	cd services/reportservice && \
+	docker build -t reportservice:latest  .
+
 build-contrastdatacollector:
 	@echo "Building contrastdatacollector..."
 	cd services/contrastdatacollector && \
 	docker build -t contrastdatacollector:latest  .
 
-build-containers: build-dataservice build-webhookservice build-frontgateservice build-console-ui build-exploit-server build-imageservice build-labelservice build-docservice build-contrastdatacollector
+build-containers: build-dataservice build-webhookservice build-frontgateservice build-console-ui build-exploit-server build-imageservice build-labelservice build-docservice build-reportservice build-contrastdatacollector
 	@echo "\nBuilding containers complete."
 
 run-helm: build-containers 

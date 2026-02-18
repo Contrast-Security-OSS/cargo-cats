@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Contrast Global Shipping</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        html {
+            font-family: 'Poppins', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #38B885 0%, #005A70 50%, #1C2343 100%);
+            min-height: 100vh;
+            color: #181818;
+        }
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: #FFFFFF !important;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(28, 35, 67, 0.15);
+            border: none;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #38B885 0%, #005A70 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            font-weight: 600;
+        }
+        .btn-primary-custom {
+            background: linear-gradient(135deg, #38B885 0%, #005A70 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 24px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-primary-custom:hover {
+            background: linear-gradient(135deg, #005A70 0%, #083C5A 100%);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(28, 35, 67, 0.3);
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            padding: 10px 16px;
+            font-family: 'Poppins', sans-serif;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #38B885;
+            box-shadow: 0 0 0 0.2rem rgba(56, 184, 133, 0.25);
+        }
+        textarea.form-control {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        .output-area {
+            background: #1C2343;
+            color: #38B885;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 100px;
+        }
+        .template-example {
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        .template-example:hover {
+            background-color: #f0faf5;
+            border-color: #38B885;
+        }
+        .template-example code {
+            color: #005A70;
+            font-size: 0.85rem;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #1C2343;">
+        <div class="container">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fas fa-box-archive me-2" style="color: #DD6E1E;"></i>Global Shipping
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link me-3" href="/dashboard" style="color: #F3F3F3;">
+                    <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                </a>
+                <a class="nav-link me-3" href="/cats" style="color: #F3F3F3;">
+                    <i class="fas fa-box-archive me-1"></i>Packages
+                </a>
+                <a class="nav-link me-3" href="/addresses" style="color: #F3F3F3;">
+                    <i class="fas fa-home me-1"></i>Addresses
+                </a>
+                <a class="nav-link me-3" href="/shipments" style="color: #F3F3F3;">
+                    <i class="fas fa-shipping-fast me-1"></i>Shipments
+                </a>
+                <a class="nav-link me-3" href="/webhooks" style="color: #F3F3F3;">
+                    <i class="fas fa-link me-1"></i>Webhooks
+                </a>
+                <a class="nav-link me-3" href="/reports" style="color: #DD6E1E;">
+                    <i class="fas fa-file-alt me-1"></i>Reports
+                </a>
+                <span class="navbar-text me-3" style="color: #F3F3F3;">
+                    Welcome, <strong th:text="${username}">User</strong>!
+                </span>
+                <form th:action="@{/logout}" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm" style="border-color: #DD6E1E; color: #DD6E1E;">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="text-white"><i class="fas fa-file-alt me-2" style="color: #DD6E1E;"></i>Shipping Report Generator</h2>
+                <p class="text-white-50">Create custom shipping reports using template syntax. Use variables like <code style="color: #38B885;">${shipmentId}</code>, <code style="color: #38B885;">${recipientName}</code>, <code style="color: #38B885;">${origin}</code>, <code style="color: #38B885;">${destination}</code>, <code style="color: #38B885;">${date}</code>, and <code style="color: #38B885;">${company}</code>.</p>
+                <span class="status-badge" th:classappend="${reportServiceStatus == 'Online'} ? 'bg-success' : 'bg-danger'" th:text="'Report Service: ' + ${reportServiceStatus}">Report Service: Online</span>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Template Editor -->
+            <div class="col-md-7 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-code me-2"></i>Template Editor
+                    </div>
+                    <div class="card-body">
+                        <form id="reportForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="shipmentId" class="form-label fw-bold">Shipment ID</label>
+                                    <input type="text" class="form-control" id="shipmentId" name="shipmentId" placeholder="e.g. SHP-20250218-001">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="recipientName" class="form-label fw-bold">Recipient Name</label>
+                                    <input type="text" class="form-control" id="recipientName" name="recipientName" placeholder="e.g. Jane Doe">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="origin" class="form-label fw-bold">Origin</label>
+                                    <input type="text" class="form-control" id="origin" name="origin" placeholder="e.g. New York, NY">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="destination" class="form-label fw-bold">Destination</label>
+                                    <input type="text" class="form-control" id="destination" name="destination" placeholder="e.g. Los Angeles, CA">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="template" class="form-label fw-bold">Report Template</label>
+                                <textarea class="form-control" id="template" name="template" rows="10" placeholder="Enter your report template here...">========================================
+       GLOBAL SHIPPING - SHIPMENT REPORT
+========================================
+Date: ${date}
+Company: ${company}
+
+Shipment ID:    ${shipmentId}
+Recipient:      ${recipientName}
+Origin:         ${origin}
+Destination:    ${destination}
+
+Status: In Transit
+========================================
+Thank you for shipping with ${company}!</textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary-custom w-100">
+                                <i class="fas fa-play me-2"></i>Generate Report
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Output -->
+                <div class="card mt-4" id="outputCard" style="display: none;">
+                    <div class="card-header">
+                        <i class="fas fa-file-lines me-2"></i>Generated Report
+                    </div>
+                    <div class="card-body">
+                        <div class="output-area" id="reportOutput"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Template Examples Sidebar -->
+            <div class="col-md-5 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-lightbulb me-2"></i>Template Examples
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">Click an example to load it into the editor.</p>
+
+                        <div class="template-example" onclick="loadTemplate('basic')">
+                            <strong><i class="fas fa-file me-1"></i> Basic Report</strong>
+                            <br><code>Shipment ${shipmentId} from ${origin} to ${destination}</code>
+                        </div>
+
+                        <div class="template-example" onclick="loadTemplate('detailed')">
+                            <strong><i class="fas fa-file-invoice me-1"></i> Detailed Invoice</strong>
+                            <br><code>Full shipping invoice with all fields</code>
+                        </div>
+
+                        <div class="template-example" onclick="loadTemplate('customs')">
+                            <strong><i class="fas fa-globe me-1"></i> Customs Declaration</strong>
+                            <br><code>International shipping customs form</code>
+                        </div>
+
+                        <div class="template-example" onclick="loadTemplate('notification')">
+                            <strong><i class="fas fa-bell me-1"></i> Delivery Notification</strong>
+                            <br><code>Customer delivery notification message</code>
+                        </div>
+
+                        <hr>
+
+                        <div class="mt-3">
+                            <h6 class="fw-bold"><i class="fas fa-info-circle me-1" style="color: #005A70;"></i>Available Variables</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr><td><code>${shipmentId}</code></td><td class="text-muted">Shipment identifier</td></tr>
+                                <tr><td><code>${recipientName}</code></td><td class="text-muted">Recipient's name</td></tr>
+                                <tr><td><code>${origin}</code></td><td class="text-muted">Origin location</td></tr>
+                                <tr><td><code>${destination}</code></td><td class="text-muted">Destination location</td></tr>
+                                <tr><td><code>${date}</code></td><td class="text-muted">Current date</td></tr>
+                                <tr><td><code>${company}</code></td><td class="text-muted">Company name</td></tr>
+                            </table>
+                        </div>
+
+                        <div class="mt-3">
+                            <h6 class="fw-bold"><i class="fas fa-code me-1" style="color: #005A70;"></i>Template Syntax</h6>
+                            <p class="text-muted small mb-1">This engine supports FreeMarker template syntax:</p>
+                            <ul class="text-muted small">
+                                <li><code>${variable}</code> - Variable substitution</li>
+                                <li><code>&lt;#if condition&gt;...&lt;/#if&gt;</code> - Conditionals</li>
+                                <li><code>&lt;#list items as item&gt;...&lt;/#list&gt;</code> - Loops</li>
+                                <li><code>${variable?upper_case}</code> - Built-in operations</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const templates = {
+            basic: `Shipment Report
+===============
+ID: \${shipmentId}
+From: \${origin}
+To: \${destination}
+Recipient: \${recipientName}
+Date: \${date}
+Generated by: \${company}`,
+
+            detailed: `================================================================
+              GLOBAL SHIPPING CO. - SHIPPING INVOICE
+================================================================
+Invoice Date:   \${date}
+Generated by:   \${company}
+
+SHIPMENT DETAILS
+----------------
+Shipment ID:    \${shipmentId}
+Recipient:      \${recipientName}
+
+ROUTING
+-------
+Origin:         \${origin}
+Destination:    \${destination}
+Service Type:   Standard Ground
+Est. Transit:   3-5 Business Days
+
+CHARGES
+-------
+Shipping Fee:       $12.99
+Insurance:          $2.00
+Handling:           $1.50
+                    ------
+Total:              $16.49
+
+================================================================
+Thank you for choosing \${company}!
+For questions, contact support@globalshipping.example
+================================================================`,
+
+            customs: `╔══════════════════════════════════════════╗
+║       CUSTOMS DECLARATION FORM           ║
+╚══════════════════════════════════════════╝
+
+Declaration Date: \${date}
+Carrier: \${company}
+
+SHIPPER INFORMATION
+  Company: \${company}
+  Origin Country: \${origin}
+
+CONSIGNEE INFORMATION
+  Name: \${recipientName}
+  Destination: \${destination}
+
+SHIPMENT REFERENCE
+  Tracking Number: \${shipmentId}
+  Number of Packages: 1
+  Gross Weight: 2.5 kg
+
+DESCRIPTION OF GOODS
+  Contents: General Merchandise
+  Declared Value: USD 50.00
+  HS Code: 9999.99.0000
+
+I declare the above information is true and correct.
+
+Signature: ________________________
+Date: \${date}`,
+
+            notification: `Dear \${recipientName},
+
+Great news from \${company}! 🎉
+
+Your shipment \${shipmentId} is on its way!
+
+Shipping Details:
+  • From: \${origin}
+  • To: \${destination}
+  • Date Shipped: \${date}
+
+You can track your package at any time using your
+tracking ID: \${shipmentId}
+
+Thank you for choosing \${company}!
+
+Best regards,
+The \${company} Team`
+        };
+
+        function loadTemplate(name) {
+            document.getElementById('template').value = templates[name];
+        }
+
+        document.getElementById('reportForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const data = {
+                template: document.getElementById('template').value,
+                shipmentId: document.getElementById('shipmentId').value,
+                recipientName: document.getElementById('recipientName').value,
+                origin: document.getElementById('origin').value,
+                destination: document.getElementById('destination').value
+            };
+
+            const outputCard = document.getElementById('outputCard');
+            const outputArea = document.getElementById('reportOutput');
+
+            outputCard.style.display = 'block';
+            outputArea.textContent = 'Generating report...';
+            outputArea.style.color = '#f0ad4e';
+
+            try {
+                const response = await fetch('/api/reports/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    outputArea.textContent = result.output;
+                    outputArea.style.color = '#38B885';
+                } else {
+                    outputArea.textContent = 'Error: ' + (result.error || 'Unknown error');
+                    outputArea.style.color = '#dc3545';
+                }
+            } catch (err) {
+                outputArea.textContent = 'Request failed: ' + err.message;
+                outputArea.style.color = '#dc3545';
+            }
+        });
+    </script>
+</body>
+</html>
