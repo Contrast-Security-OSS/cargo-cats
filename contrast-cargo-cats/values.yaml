@@ -32,6 +32,10 @@ docservice:
   image: docservice:latest
   name: docservice
 
+reportservice:
+  image: reportservice:latest
+  name: reportservice
+
 opensearch:
   initialAdminPassword: "Contrast@123!"
 
