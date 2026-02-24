@@ -63,10 +63,12 @@ This documentation covers:
 
 Before you can deploy Cargo Cats, ensure you have the following installed:
 
-1. **Docker Desktop** with Kubernetes enabled
+1. **Docker Desktop** (recommended) with Kubernetes enabled
    - Install Docker Desktop
    - Go to Settings → Kubernetes → Enable Kubernetes
    - Wait for Kubernetes to start (green indicator)
+
+   > **Don't have Docker Desktop?** You can set up a local Kubernetes cluster using k3s or Minikube instead. See the **[Alternative Cluster Setup Guide](CLUSTER-SETUP.md)** for instructions.
 
 2. **Helm** (Kubernetes package manager)
    ```bash

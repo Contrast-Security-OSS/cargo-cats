@@ -46,7 +46,7 @@ spec:
         - name: cluster.initial_cluster_manager_nodes
           value: "opensearch-node"
         - name: bootstrap.memory_lock
-          value: "true"
+          value: "false"
         - name: OPENSEARCH_JAVA_OPTS
           value: "-Xms512m -Xmx512m"
         - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
