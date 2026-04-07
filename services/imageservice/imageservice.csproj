@@ -6,4 +6,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Vulnerable packages for security testing -->
+    <!-- CVE-2024-21907 - Newtonsoft.Json Improper Handling of Exceptional Conditions -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+
+    <!-- CVE-2021-26701 - System.Text.Encodings.Web Denial of Service -->
+    <PackageReference Include="System.Text.Encodings.Web" Version="4.7.1" />
+
+    <!-- CVE-2023-29331 - Microsoft.Data.SqlClient Information Disclosure -->
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.0" />
+
+    <!-- CVE-2021-24112 - .NET Core Denial of Service Vulnerability -->
+    <PackageReference Include="System.Drawing.Common" Version="5.0.0" />
+  </ItemGroup>
+
 </Project>

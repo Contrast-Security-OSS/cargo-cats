@@ -1,6 +1,19 @@
+using Newtonsoft.Json;
+using System.Drawing;
+using System.Text.Encodings.Web;
+using Microsoft.Data.SqlClient;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var app = builder.Build();
+
+// Force vulnerable assemblies to load at runtime
+Console.WriteLine("[DEBUG] Loading vulnerable dependencies for security testing...");
+var _ = JsonConvert.SerializeObject(new { loaded = "Newtonsoft.Json" });
+var __ = JavaScriptEncoder.Default;
+var ___ = typeof(Bitmap).FullName;
+var ____ = typeof(SqlConnection).FullName;
+Console.WriteLine("[DEBUG] Vulnerable dependencies loaded successfully");
 
 // Ensure the uploads directory exists
 var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
