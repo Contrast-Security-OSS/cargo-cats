@@ -20,7 +20,7 @@ The application includes other styles of monitoring with ModSecurity WAF running
 
 ### Vulnerable Application Services
 
-The core application consists of six intentionally vulnerable microservices:
+The core application consists of seven intentionally vulnerable microservices:
 
 - **Frontgateservice** (Java/Spring Boot) - Web frontend, authentication, and API gateway to other services
 - **Dataservice** (Java/Spring Boot) - Handles data operations and payment processing
@@ -28,6 +28,7 @@ The core application consists of six intentionally vulnerable microservices:
 - **Imageservice** (C#/.NET) - Manages photo uploads and file operations
 - **Labelservice** (Node.js) - Generates shipping labels and handles address processing
 - **Docservice** (Python/Flask) - DOCX document processor
+- **Reportservice** (Java/Tomcat) - Shipping report template engine
 
 ### Simulation and Monitoring Tools
 
@@ -53,6 +54,7 @@ This documentation covers:
 - Command Injection
 - Path Traversal
 - XML External Entity (XXE) Injection
+- Server-Side Template Injection (SSTI) / RCE (CVE-2025-66474)
 - Server-Side JavaScript Injection (SSJS)
 - Untrusted Deserialization
 - Weak Password Storage (MD5 Hashing)
