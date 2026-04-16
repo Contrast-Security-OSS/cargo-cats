@@ -1,0 +1,106 @@
+# Dependabot is disabled for this repository.
+# cargo-cats is a purposefully vulnerable application used for security tooling
+# testing. Dependency vulnerabilities are intentional and Dependabot PRs are not relevant.
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/services/dataservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "maven"
+    directory: "/services/frontgateservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "pip"
+    directory: "/services/docservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "pip"
+    directory: "/services/webhookservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "pip"
+    directory: "/services/contrastdatacollector"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "pip"
+    directory: "/services/console-ui"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "npm"
+    directory: "/services/labelservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "nuget"
+    directory: "/services/imageservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/console-ui"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/contrastdatacollector"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/dataservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/docservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/exploit-server"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/frontgateservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/imageservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/labelservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    directory: "/services/webhookservice"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
