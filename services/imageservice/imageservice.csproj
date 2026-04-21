@@ -9,6 +9,7 @@
   <ItemGroup>
     <!-- Vulnerable packages for security testing -->
     <!-- CVE-2024-21907 - Newtonsoft.Json Improper Handling of Exceptional Conditions -->
+  <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="6.34.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 
     <!-- CVE-2021-26701 - System.Text.Encodings.Web Denial of Service -->
