@@ -15,7 +15,7 @@
     <PackageReference Include="System.Text.Encodings.Web" Version="4.7.1" />
 
     <!-- CVE-2023-29331 - Microsoft.Data.SqlClient Information Disclosure -->
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.7" />
 
     <!-- CVE-2021-24112 - .NET Core Denial of Service Vulnerability -->
     <PackageReference Include="System.Drawing.Common" Version="5.0.0" />
