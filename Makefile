@@ -33,6 +33,16 @@ setup-opensearch:
 	sleep 5;
 	echo "OpenSearch setup complete."
 
+check-not-kind:
+	@PROVIDER_ID=$$(kubectl get nodes -o jsonpath='{.items[0].spec.providerID}' 2>/dev/null); \
+	CONTEXT=$$(kubectl config current-context 2>/dev/null); \
+	if echo "$$PROVIDER_ID" | grep -q "^kind://" || echo "$$CONTEXT" | grep -q "^kind-"; then \
+		echo "Error: Detected a kind cluster."; \
+		echo "Cargo Cats requires kubeadm (Docker Desktop's Kubernetes provider) and is not compatible with kind."; \
+		echo "In Docker Desktop: Settings → Kubernetes → set provider to kubeadm, then reset the cluster."; \
+		exit 1; \
+	fi
+
 validate-env-vars:
 	@echo "Validating environment variables..."
 	@if [ -z "$(CONTRAST__AGENT__TOKEN)" ]; then \
@@ -127,7 +137,7 @@ deploy-simulation-console: build-console-ui build-contrastdatacollector
 		--set consoleui.contrastApiAuthorization=$(CONTRAST__API__AUTHORIZATION)
 	echo ""
 	
-deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console
+deploy: check-not-kind validate-env-vars deploy-contrast download-helm-dependencies run-helm setup-opensearch deploy-simulation-console
 	$(eval contrast_url := $(shell echo "$(CONTRAST__AGENT__TOKEN)" | base64 --decode | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"\(.*\)"/\1/' | sed 's/-agents//g'))
 	echo "\n\nDeployment complete!"
 	echo "=================================================================="
@@ -148,7 +158,7 @@ deploy: validate-env-vars deploy-contrast download-helm-dependencies run-helm se
 	echo "==================================================================\n"
 	echo ""
 
-deploy-no-contrast: validate-env-vars download-helm-dependencies run-helm setup-opensearch deploy-simulation-console
+deploy-no-contrast: check-not-kind validate-env-vars download-helm-dependencies run-helm setup-opensearch deploy-simulation-console
 	echo "\n\nDeployment complete (without Contrast)!"
 	echo "=================================================================="
 	echo "Note: It may take a few minutes for the deployment to be fully ready."
