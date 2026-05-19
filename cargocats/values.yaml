@@ -36,6 +36,10 @@ reportservice:
   image: reportservice:latest
   name: reportservice
 
+trackingreportservice:
+  image: trackingreportservice:latest
+  name: trackingreportservice
+
 opensearch:
   initialAdminPassword: "Contrast@123!"
 

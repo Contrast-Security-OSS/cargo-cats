@@ -111,7 +111,12 @@ build-contrastdatacollector:
 	cd services/contrastdatacollector && \
 	docker build -t contrastdatacollector:latest  .
 
-build-containers: build-dataservice build-webhookservice build-frontgateservice build-console-ui build-exploit-server build-imageservice build-labelservice build-docservice build-reportservice build-contrastdatacollector
+build-trackingreportservice:
+	@echo "Building trackingreportservice..."
+	cd services/trackingreportservice && \
+	docker build -t trackingreportservice:latest  .
+
+build-containers: build-dataservice build-webhookservice build-frontgateservice build-console-ui build-exploit-server build-imageservice build-labelservice build-docservice build-reportservice build-contrastdatacollector build-trackingreportservice
 	@echo "\nBuilding containers complete."
 
 run-helm: build-containers 

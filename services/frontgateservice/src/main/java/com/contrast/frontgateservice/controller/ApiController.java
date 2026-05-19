@@ -8,6 +8,7 @@ import com.contrast.frontgateservice.service.UserService;
 import com.contrast.frontgateservice.service.LabelServiceProxy;
 import com.contrast.frontgateservice.service.DocServiceProxy;
 import com.contrast.frontgateservice.service.ReportServiceProxy;
+import com.contrast.frontgateservice.service.TrackingReportServiceProxy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
@@ -53,7 +54,10 @@ public class ApiController {
     
     @Autowired
     private DocServiceProxy docServiceProxy;
-    
+
+    @Autowired
+    private TrackingReportServiceProxy trackingReportServiceProxy;
+
     @Autowired
     private ReportServiceProxy reportServiceProxy;
     
@@ -180,8 +184,13 @@ public class ApiController {
                                 "<p class=\"mb-1\"><strong>Tracking ID:</strong> %s</p>" +
                                 "<p class=\"mb-1\"><strong>Status:</strong> <span class=\"badge %s\">%s</span></p>" +
                                 "<small class=\"text-muted\">Your precious cargo is being tracked! 🐱</small>" +
+                                "<div class=\"mt-2\">" +
+                                    "<a href=\"/api/tracking-report?tracking_id=%s\" target=\"_blank\" class=\"btn btn-sm btn-outline-secondary\">" +
+                                        "<i class=\"fas fa-file-alt me-1\"></i>Export Tracking Report" +
+                                    "</a>" +
+                                "</div>" +
                             "</div>",
-                            trackingIdValue, badgeClass, statusText
+                            trackingIdValue, badgeClass, statusText, trackingIdValue
                         );
                         
                         logger.debug("Returning success HTML response");
@@ -268,6 +277,33 @@ public class ApiController {
             default:
                 return "bg-info";
         }
+    }
+
+    @GetMapping("/tracking-report")
+    public ResponseEntity<String> getTrackingReport(@RequestParam("tracking_id") String trackingId) {
+        logger.info("API request: Fetching tracking report for {}", trackingId);
+        ResponseEntity<String> response = trackingReportServiceProxy.getTrackingReport(trackingId);
+        return ResponseEntity.status(response.getStatusCode())
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(response.getBody());
+    }
+
+    @GetMapping("/tracking-report/search")
+    public ResponseEntity<String> searchTrackingHistory(@RequestParam String q) {
+        logger.info("API request: Searching tracking history for '{}'", q);
+        ResponseEntity<String> response = trackingReportServiceProxy.searchTrackingHistory(q);
+        return ResponseEntity.status(response.getStatusCode())
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(response.getBody());
+    }
+
+    @PostMapping("/tracking-report/events")
+    public ResponseEntity<String> addTrackingEvent(@RequestBody Map<String, Object> body) {
+        logger.info("API request: Adding tracking event for '{}'", body.get("tracking_id"));
+        ResponseEntity<String> response = trackingReportServiceProxy.addTrackingEvent(body);
+        return ResponseEntity.status(response.getStatusCode())
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(response.getBody());
     }
 
     @GetMapping("/shipments")
