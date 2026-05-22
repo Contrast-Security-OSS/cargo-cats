@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .antMatchers("/", "/css/**", "/js/**", "/images/**", "/register", "/login").permitAll()
                 .antMatchers(HttpMethod.GET, "/api/shipments/track/**").permitAll() // Allow public shipment tracking
                 .antMatchers(HttpMethod.DELETE, "/api/cats/**").permitAll() //oops, probs shoundn't allow everyone to delete
+                .antMatchers("/api/ai/**").permitAll() // Public so the AI usage demo can be triggered with curl
                 .antMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             )

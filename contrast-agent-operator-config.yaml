@@ -13,9 +13,11 @@ spec:
           enable: true
         observe:
           enable: true
+          ai_usage:
+            enable: true
         agent:
           logger:
-            level: INFO
+            level: DEBUG
 ---
 apiVersion: agents.contrastsecurity.com/v1beta1
 kind: ClusterAgentConnection

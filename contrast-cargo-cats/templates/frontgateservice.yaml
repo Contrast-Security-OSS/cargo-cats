@@ -34,6 +34,8 @@ spec:
             value: '{{ .Values.mysql.user }}'
           - name: SPRING_DATASOURCE_PASSWORD
             value: '{{ .Values.mysql.password }}'
+          - name: ANTHROPIC_API_KEY
+            value: '{{ .Values.frontgateservice.anthropicApiKey }}'
           ports:
             - containerPort: 8081
           resources:

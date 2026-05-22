@@ -15,6 +15,10 @@ cargocatsDataservice:
 frontgateservice:
   image: frontgateservice:latest
   name: frontgateservice
+  # Used by AiAssistantProxy to call api.anthropic.com so the Contrast agent
+  # reports AI usage in Explorer. The dummy default still triggers detection
+  # (request leaves the JVM, agent records it, Anthropic returns 401).
+  anthropicApiKey: sk-ant-test-placeholder
 
 webhookservice:
   image: webhookservice:latest 

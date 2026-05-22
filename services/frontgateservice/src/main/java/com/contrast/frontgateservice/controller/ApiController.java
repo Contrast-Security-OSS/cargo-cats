@@ -1,6 +1,7 @@
 package com.contrast.frontgateservice.controller;
 
 import com.contrast.frontgateservice.entity.User;
+import com.contrast.frontgateservice.service.AiAssistantProxy;
 import com.contrast.frontgateservice.service.DataServiceProxy;
 import com.contrast.frontgateservice.service.ImageServiceProxy;
 import com.contrast.frontgateservice.service.WebhookServiceProxy;
@@ -52,7 +53,10 @@ public class ApiController {
     
     @Autowired
     private DocServiceProxy docServiceProxy;
-    
+
+    @Autowired
+    private AiAssistantProxy aiAssistantProxy;
+
     @Autowired
     private UserService userService;
 
@@ -787,6 +791,32 @@ public class ApiController {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body("{\"error\": \"Failed to retrieve cat fact: " + e.getMessage() + "\"}");
         }
+    }
+
+    @PostMapping("/ai/ask")
+    public ResponseEntity<String> askAiAssistant(@RequestBody(required = false) Map<String, Object> payload) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = (auth != null && auth.isAuthenticated()) ? auth.getName() : "anonymous";
+
+        String prompt = "Suggest a friendly one-line shipping confirmation message for a cat package.";
+        if (payload != null && payload.get("prompt") instanceof String) {
+            String custom = (String) payload.get("prompt");
+            if (!custom.isEmpty()) {
+                prompt = custom;
+            }
+        }
+
+        logger.info("API request: AI assistant prompt from user {}", username);
+        ResponseEntity<String> response = aiAssistantProxy.ask(prompt);
+        return ResponseEntity.status(response.getStatusCode())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(response.getBody() != null ? response.getBody() : "{}");
+    }
+
+    @GetMapping("/ai/ask")
+    public ResponseEntity<String> askAiAssistantGet(@RequestParam(name = "prompt", required = false) String prompt) {
+        Map<String, Object> payload = prompt == null ? null : Map.of("prompt", prompt);
+        return askAiAssistant(payload);
     }
 
     @ExceptionHandler(Exception.class)
