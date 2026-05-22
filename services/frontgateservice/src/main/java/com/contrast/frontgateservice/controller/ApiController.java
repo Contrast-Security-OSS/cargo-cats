@@ -8,6 +8,7 @@ import com.contrast.frontgateservice.service.WebhookServiceProxy;
 import com.contrast.frontgateservice.service.UserService;
 import com.contrast.frontgateservice.service.LabelServiceProxy;
 import com.contrast.frontgateservice.service.DocServiceProxy;
+import com.contrast.frontgateservice.service.ReportServiceProxy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
@@ -57,6 +58,9 @@ public class ApiController {
     @Autowired
     private AiAssistantProxy aiAssistantProxy;
 
+    @Autowired
+    private ReportServiceProxy reportServiceProxy;
+    
     @Autowired
     private UserService userService;
 
@@ -817,6 +821,52 @@ public class ApiController {
     public ResponseEntity<String> askAiAssistantGet(@RequestParam(name = "prompt", required = false) String prompt) {
         Map<String, Object> payload = prompt == null ? null : Map.of("prompt", prompt);
         return askAiAssistant(payload);
+    }
+
+    // Report service endpoints
+    @PostMapping("/reports/generate")
+    public ResponseEntity<String> generateReport(@RequestBody Map<String, String> reportData) {
+        try {
+            String template = reportData.get("template");
+            String shipmentId = reportData.getOrDefault("shipmentId", "");
+            String recipientName = reportData.getOrDefault("recipientName", "");
+            String origin = reportData.getOrDefault("origin", "");
+            String destination = reportData.getOrDefault("destination", "");
+
+            if (template == null || template.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\": \"Template content is required\"}");
+            }
+
+            ResponseEntity<String> response = reportServiceProxy.processTemplate(
+                    template, shipmentId, recipientName, origin, destination);
+            return ResponseEntity.status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response.getBody());
+        } catch (Exception e) {
+            logger.error("Report generation error: {}", e.getMessage());
+            logger.debug("Stack trace:", e);
+            return ResponseEntity.status(500)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"error\": \"Report generation failed: " + e.getMessage() + "\"}");
+        }
+    }
+
+    @GetMapping("/reports/health")
+    public ResponseEntity<String> checkReportServiceHealth() {
+        try {
+            ResponseEntity<String> response = reportServiceProxy.healthCheck();
+            return ResponseEntity.status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response.getBody());
+        } catch (Exception e) {
+            logger.error("Report service health check error: {}", e.getMessage());
+            logger.debug("Stack trace:", e);
+            return ResponseEntity.status(500)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"error\": \"Health check failed: " + e.getMessage() + "\"}");
+        }
     }
 
     @ExceptionHandler(Exception.class)

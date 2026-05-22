@@ -1,4 +1,9 @@
 .env
-/contrast-cargo-cats/charts
+/cargocats/charts
 .k8s_env
+secrets.yaml
+**/target/
+**/__pycache__/
+**/node_modules/
 /.claude
+/.vscode

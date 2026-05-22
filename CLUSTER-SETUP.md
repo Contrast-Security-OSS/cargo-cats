@@ -218,7 +218,7 @@ kubectl get nodes
 The `*.localhost` hostnames resolve to `127.0.0.1`, so you need to forward the ingress controller to local port 80. Run this in a separate terminal:
 
 ```bash
-sudo kubectl --kubeconfig ~/.kube/config port-forward svc/contrast-cargo-cats-ingress-nginx-controller 80:80
+sudo kubectl --kubeconfig ~/.kube/config port-forward svc/cargocats-ingress-nginx-controller 80:80
 ```
 
 Leave it running.

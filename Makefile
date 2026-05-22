@@ -7,7 +7,7 @@ endif
 
 download-helm-dependencies:
 	@echo "Downloading Helm chart dependencies..."
-	@cd contrast-cargo-cats && helm dependency update
+	@cd cargocats && helm dependency update
 	@echo "Helm chart dependencies downloaded successfully."
 
 deploy-contrast:
@@ -28,7 +28,7 @@ setup-opensearch:
         sleep 5; \
     done
 
-	curl --insecure  -X POST -H "Content-Type: multipart/form-data" -H "osd-xsrf: osd-fetch" "http://opensearch.localhost/api/saved_objects/_import?overwrite=true" -u admin:Contrast@123! --form file='@contrast-cargo-cats/opesearch_savedobjects.ndjson'
+	curl --insecure  -X POST -H "Content-Type: multipart/form-data" -H "osd-xsrf: osd-fetch" "http://opensearch.localhost/api/saved_objects/_import?overwrite=true" -u admin:Contrast@123! --form file='@cargocats/opesearch_savedobjects.ndjson'
 	curl --insecure  -X POST -H 'Content-Type: application/json' -H 'osd-xsrf: osd-fetch' 'http://opensearch.localhost/api/opensearch-dashboards/settings' -u admin:Contrast@123! --data-raw '{"changes":{"defaultRoute":"/app/dashboards#/"}}'
 	sleep 5;
 	echo "OpenSearch setup complete."
@@ -101,28 +101,33 @@ build-docservice:
 	cd services/docservice && \
 	docker build -t docservice:latest  .
 
+build-reportservice:
+	@echo "Building reportservice..."
+	cd services/reportservice && \
+	docker build -t reportservice:latest  .
+
 build-contrastdatacollector:
 	@echo "Building contrastdatacollector..."
 	cd services/contrastdatacollector && \
 	docker build -t contrastdatacollector:latest  .
 
-build-containers: build-dataservice build-webhookservice build-frontgateservice build-console-ui build-exploit-server build-imageservice build-labelservice build-docservice build-contrastdatacollector
+build-containers: build-dataservice build-webhookservice build-frontgateservice build-console-ui build-exploit-server build-imageservice build-labelservice build-docservice build-reportservice build-contrastdatacollector
 	@echo "\nBuilding containers complete."
 
 run-helm: build-containers 
 	echo ""
 	@echo "Deploying cluster..."
-	helm upgrade --install contrast-cargo-cats  ./contrast-cargo-cats   --cleanup-on-fail \
+	helm upgrade --install cargocats  ./cargocats   --cleanup-on-fail \
 		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME)
 
 deploy-simulation-console: build-console-ui build-contrastdatacollector
 	@echo "Waiting for ingress controller to be ready..."
-	@until kubectl get deployment contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q "1"; do \
+	@until kubectl get deployment cargocats-ingress-nginx-controller -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q "1"; do \
 		echo "Waiting for ingress controller..."; \
 		sleep 5; \
 	done
 	@echo "Getting ingress controller IP..."
-	$(eval INGRESS_IP := $(shell kubectl get service contrast-cargo-cats-ingress-nginx-controller -o jsonpath='{.spec.clusterIP}' 2>/dev/null))
+	$(eval INGRESS_IP := $(shell kubectl get service cargocats-ingress-nginx-controller -o jsonpath='{.spec.clusterIP}' 2>/dev/null))
 	@echo "Ingress controller IP: $(INGRESS_IP)"
 	@echo "Deploying simulation console..."
 	helm upgrade --install simulation-console ./simulation-console --cleanup-on-fail \
@@ -176,8 +181,8 @@ deploy-no-contrast: check-not-kind validate-env-vars download-helm-dependencies 
 	echo "==================================================================\n"
 	echo ""
 
-uninstall: 
-	helm uninstall contrast-cargo-cats; helm uninstall simulation-console; kubectl delete namespace contrast-agent-operator;
+uninstall:
+	helm uninstall cargocats --ignore-not-found; helm uninstall contrast-cargo-cats --ignore-not-found; helm uninstall simulation-console --ignore-not-found; kubectl delete configmap mysql-init-script opensearch-dashboard-config --ignore-not-found; kubectl delete namespace contrast-agent-operator --ignore-not-found;
 
 redeploy: uninstall deploy
 	@echo "Redeployment complete!"

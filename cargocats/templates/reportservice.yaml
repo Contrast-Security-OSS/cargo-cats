@@ -1,0 +1,59 @@
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: '{{.Release.Name}}-{{ .Values.reportservice.name }}'
+  namespace: {{ .Release.Namespace }}
+  labels:
+    contrast-agent: flex
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.reportservice.name }}
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
+      labels:
+        app: {{ .Values.reportservice.name }}
+    spec:
+      containers:
+        - name: {{ .Values.reportservice.name }}
+          image: {{ .Values.reportservice.image }} 
+          imagePullPolicy: Never
+          env:
+          - name: CONTRAST__APPLICATION__NAME
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.reportservice.name }}'
+          - name: CONTRAST__SERVER__NAME
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.reportservice.name }}-agent'
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+              ephemeral-storage: "512Mi"
+            limits:
+              memory: "512Mi"
+              cpu: "300m"
+              ephemeral-storage: "1Gi"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.reportservice.name }}
+  namespace: default
+spec:
+  selector:
+    app: {{ .Values.reportservice.name }}
+  ports:
+    - name: http-port      
+      protocol: TCP
+      port: 8080           
+      targetPort: 8080     
+
+---

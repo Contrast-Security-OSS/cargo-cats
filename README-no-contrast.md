@@ -15,10 +15,10 @@ This guide shows how to add Contrast Security agents to a cluster that was deplo
 
 ### 1. Label application deployments for Contrast agent injection
 
-This command labels only the application deployment pods (those starting with `contrast-cargo-cats`) so the Contrast operator knows to inject the agent:
+This command labels only the application deployment pods (those starting with `cargocats`) so the Contrast operator knows to inject the agent:
 
 ```bash
-kubectl get deployments -o name | grep contrast-cargo-cats | xargs -I {} kubectl patch {} -p '{"spec":{"template":{"metadata":{"labels":{"contrast-agent":"flex"}}}}}'
+kubectl get deployments -o name | grep cargocats | xargs -I {} kubectl patch {} -p '{"spec":{"template":{"metadata":{"labels":{"contrast-agent":"flex"}}}}}'
 ```
 
 ### 2. Install the Contrast Agent Operator
@@ -33,7 +33,6 @@ Then deploy the Contrast operator, create the authentication secret, and apply y
 
 ```bash
 kubectl apply -f https://github.com/Contrast-Security-OSS/agent-operator/releases/latest/download/install-prod.yaml && \
-kubectl -n contrast-agent-operator delete secret default-agent-connection-secret --ignore-not-found && \
 kubectl -n contrast-agent-operator create secret generic default-agent-connection-secret --from-literal=token="$CONTRAST__AGENT__TOKEN" && \
 kubectl apply -f contrast-agent-operator-config.yaml
 ```

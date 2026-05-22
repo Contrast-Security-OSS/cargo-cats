@@ -830,6 +830,7 @@
                     <button class="btn-individual-exploit" onclick="runIndividualExploit('ssjs-injection')">SSJS Injection</button>
                     <button class="btn-individual-exploit" onclick="runIndividualExploit('xxe')">XXE</button>
                     <button class="btn-individual-exploit" onclick="runIndividualExploit('deserialization')">Untrusted Deserialization</button>
+                    <button class="btn-individual-exploit" onclick="runIndividualExploit('ssti')">CVE-2025-64087 RCE</button>
                 </div>
             </div>
             
@@ -873,7 +874,7 @@
                     
                     <div class="modal-option" onclick="showDeleteAllOption()">
                         <h4><i class="bi bi-trash3-fill"></i> Delete All Incidents & Issues</h4>
-                        <p>Remove all incidents and issues for applications starting with "{{ contrast_uniq_name }}-contrast-cargo-cats"</p>
+                        <p>Remove all incidents and issues for applications starting with "{{ contrast_uniq_name }}-cargocats"</p>
                     </div>
                 </div>
                 
@@ -881,7 +882,7 @@
                 <div id="deleteAllForm" class="modal-form hidden">
                     <h4><i class="bi bi-trash3-fill"></i> Delete All Incidents & Issues</h4>
                     <p style="margin-bottom: 15px; color: #dc3545; font-weight: 600;">
-                        ⚠️ This action will permanently delete ALL incidents and issues for applications starting with "{{ contrast_uniq_name }}-contrast-cargo-cats". This cannot be undone.
+                        ⚠️ This action will permanently delete ALL incidents and issues for applications starting with "{{ contrast_uniq_name }}-cargocats". This cannot be undone.
                     </p>
                     <p style="margin-bottom: 20px; color: #6c757d; font-style: italic;">
                         ℹ️ Note: Deletion is performed asynchronously and may take some time to complete. The cleanup process will continue in the background.
@@ -900,7 +901,7 @@
                     </p>
                     <div class="form-group">
                         <label for="applicationName">Application Name:</label>
-                        <input type="text" id="applicationName" placeholder="Enter application name (e.g., myapp-contrast-cargo-cats)" />
+                        <input type="text" id="applicationName" placeholder="Enter application name (e.g., myapp-cargocats)" />
                     </div>
                     <div class="form-buttons">
                         <button class="btn-secondary" onclick="showMainOptions()">Cancel</button>

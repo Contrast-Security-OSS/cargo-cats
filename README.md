@@ -1,13 +1,80 @@
-# Global Shipping 📦
+# Cargo Cats 📦
 
-Global Shipping is a multi-language microservice application designed as a purposefully vulnerable demo application for security testing and education. It simulates a shipping/logistics platform with various intentional security vulnerabilities. All services are automatically instrumented using the Contrast Security Flex Agent via agent-operator for runtime application security monitoring.
+Cargo Cats is a multi-language microservice application designed as a purposefully vulnerable demo application for security testing and education. It simulates a shipping/logistics platform with various intentional security vulnerabilities. All services are automatically instrumented using the Contrast Security Flex Agent via agent-operator for runtime application security monitoring.
 
 A dedicated simulation console provides a centralized interface for controlling traffic patterns, including normal user behavior, attack simulations, and exploit scenarios. This allows you to generate realistic traffic and security events to demonstrate how different security tools detect and respond to threats.
 
 The application includes other styles of monitoring with ModSecurity WAF running on the ingress pod for web application firewall protection, and Falco installed on each pod for OS based runtime security monitoring. All logs from these security tools are collected in a built-in OpenSearch instance with preconfigured dashboards for centralized monitoring and analysis.
-<div align="center">
-<img src="images/diagram.png" width="900"/>
-</div>
+```mermaid
+flowchart TB
+    User([👤 User / Attacker])
+
+    subgraph K8S["Kubernetes Cluster"]
+        direction TB
+
+        Ingress["<b>nginx-ingress</b><br/>━━━━━━<br/>🛡️ <font color='#0066cc'>ModSecurity WAF</font>"]
+
+        subgraph APP["Vulnerable Application"]
+            direction TB
+            FG["<b>frontgateservice</b><br/>Java<br/>━━━━━━━━━━━━━━<br/><font color='#c00'>⚠️ XSS · Log4Shell · BrokenAC<br/>HTTPOnly · Deserialization</font><br/>━━━━━━━━━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+
+            subgraph BE["Backends"]
+                direction LR
+                DS["<b>dataservice</b><br/>Java<br/>━━━━━━<br/><font color='#c00'>⚠️ SQLi · MD5</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                WH["<b>webhookservice</b><br/>Python<br/>━━━━━━<br/><font color='#c00'>⚠️ SSRF · Cmd Inj</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                IS["<b>imageservice</b><br/>.NET<br/>━━━━━━<br/><font color='#c00'>⚠️ Path Traversal</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                LS["<b>labelservice</b><br/>Node.js<br/>━━━━━━<br/><font color='#c00'>⚠️ SSJS</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                DC["<b>docservice</b><br/>Python<br/>━━━━━━<br/><font color='#c00'>⚠️ XXE</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                RS["<b>reportservice</b><br/>Java<br/>━━━━━━<br/><font color='#c00'>⚠️ SSTI</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                DB[("<b>MySQL</b><br/>db + credit_cards")]
+            end
+        end
+
+        subgraph SIM["Simulation Tools"]
+            direction LR
+            CU["<b>console-ui</b><br/>Python · Flask"]
+            ZAP["<b>zapproxy</b><br/>OWASP ZAP"]
+            CU -- "drives scans" --> ZAP
+        end
+
+        subgraph SUPP["Supporting Services"]
+            direction TB
+            EX["<b>exploit-server</b><br/><i>JNDI kit for Log4Shell</i>"]
+            CDC["<b>contrastdatacollector</b><br/><i>pulls ADR from Contrast SaaS</i>"]
+            OSN[("<b>opensearch-node</b><br/><i>logs + ADR store</i>")]
+            OSD["<b>opensearch-dashboard</b><br/><i>logs UI</i>"]
+            EX ~~~ CDC
+            CDC ~~~ OSN
+            OSN ~~~ OSD
+        end
+    end
+
+    User --> Ingress
+    Ingress --> FG
+    Ingress --> CU
+    Ingress ~~~ ZAP
+    FG --> DS
+    FG --> WH
+    FG --> IS
+    FG --> LS
+    FG --> DC
+    FG --> RS
+    DS --> DB
+    WH --> DB
+
+    CU  -. "generates traffic + exploits" .-> Ingress
+    ZAP -. "generates attacks" .-> Ingress
+
+    ZAP ~~~ EX
+
+    classDef vuln fill:#e8e8e8,stroke:#888,color:#000
+    classDef sim  fill:#e6f3ff,stroke:#06c,color:#000
+    classDef supp fill:#fff4d4,stroke:#c80,color:#000
+    class FG,DS,WH,IS,LS,DC,RS,DB,Ingress vuln
+    class CU,ZAP sim
+    class EX,CDC,OSN,OSD supp
+```
+
 <div align="center">
   <img src="images/1.png" width="300"/>
   <img src="images/2.png" width="300"/>
@@ -20,7 +87,7 @@ The application includes other styles of monitoring with ModSecurity WAF running
 
 ### Vulnerable Application Services
 
-The core application consists of six intentionally vulnerable microservices:
+The core application consists of seven intentionally vulnerable microservices:
 
 - **Frontgateservice** (Java/Spring Boot) - Web frontend, authentication, and API gateway to other services
 - **Dataservice** (Java/Spring Boot) - Handles data operations and payment processing
@@ -28,6 +95,7 @@ The core application consists of six intentionally vulnerable microservices:
 - **Imageservice** (C#/.NET) - Manages photo uploads and file operations
 - **Labelservice** (Node.js) - Generates shipping labels and handles address processing
 - **Docservice** (Python/Flask) - DOCX document processor
+- **Reportservice** (Java/Tomcat) - Shipping report template engine
 
 ### Simulation and Monitoring Tools
 
@@ -53,6 +121,7 @@ This documentation covers:
 - Command Injection
 - Path Traversal
 - XML External Entity (XXE) Injection
+- Server-Side Template Injection (SSTI) / RCE (CVE-2025-64087)
 - Server-Side JavaScript Injection (SSJS)
 - Untrusted Deserialization
 - Weak Password Storage (MD5 Hashing)
@@ -101,7 +170,7 @@ Before you can deploy Cargo Cats, ensure you have the following installed:
    CONTRAST__AGENT__TOKEN=your-contrast-agent-token
    CONTRAST__UNIQ__NAME=your-unique-name
    ```
-      **Note**: The `CONTRAST__UNIQ__NAME` value will be used to ensure your application and server names are unique in the Contrast UI, preventing conflicts with other deployments.
+      **Note**: The `CONTRAST__UNIQ__NAME` value is prepended to each service's application name in Contrast, following the pattern `{CONTRAST__UNIQ__NAME}-cargocats-{service}` (e.g. `bob-cargocats-frontgateservice`). This keeps your application and server names unique in the Contrast UI and prevents conflicts with other deployments. Pick something that identifies you (your name, initials, etc).
 
 
    **Optional**: For advanced features, you can also set these additional environment variables:

@@ -10,7 +10,7 @@ import sys
 import logging
 
 # Configure environment variables with defaults
-DB_HOST = os.getenv('DB_HOST', 'contrast-cargo-cats-db')
+DB_HOST = os.getenv('DB_HOST', 'cargocats-db')
 DB_PORT = os.getenv('DB_PORT', '3306')
 DB_NAME = os.getenv('DB_NAME', 'db')
 DB_USER = os.getenv('DB_USER', 'cargocats')
