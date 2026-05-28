@@ -697,7 +697,7 @@ def exploit_list():
         {"name": "XSS", "endpoint": "/exploit/xss", "description": "Cross-Site Scripting exploit"},
         {"name": "Login", "endpoint": "/exploit/login", "description": "Default credential login exploit"},
         {"name": "Command Injection", "endpoint": "/exploit/command-injection", "description": "OS command injection exploit including reverse shell preparation"},
-        {"name": "Path Traversal", "endpoint": "/exploit/path-traversal", "description": "Directory traversal exploit"},
+        {"name": "Path Traversal (.NET)", "endpoint": "/exploit/path-traversal", "description": "Directory traversal exploit via .NET imageservice photo endpoint"},
         {"name": "SQL Injection", "endpoint": "/exploit/sql-injection", "description": "SQL injection exploit"},
         {"name": "Log4Shell", "endpoint": "/exploit/log4shell", "description": "Log4j JNDI injection exploit"},
         {"name": "SSJS Injection", "endpoint": "/exploit/ssjs-injection", "description": "Server-side JavaScript injection"},
