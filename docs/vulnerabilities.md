@@ -588,9 +588,6 @@ curl 'http://cargocats.localhost/api/tracking-report/download?file=../../../../.
 With Contrast Protect **disabled**, returns the contents of `/etc/passwd`.
 With Contrast Protect **enabled**, the agent blocks the request.
 
-**Expected Contrast detections:**
-- **Assess (IAST):** Path Traversal finding with the data-flow trace from the Symfony `Request::query->get` source through the string concatenation to the `file_get_contents` sink.
-- **Protect (RASP):** Path Traversal Protect rule blocks the request when the resolved path escapes the intended base directory.
 
 **Impact:**
 - Disclosure of arbitrary files readable by the PHP-FPM process
@@ -624,10 +621,6 @@ curl "http://cargocats.localhost/api/tracking-report/search?q=x%27%29%20or%20%27
 ```bash
 curl "http://cargocats.localhost/api/tracking-report/search?q=x%27%29%20or%20contains%28cat%2C%27iskers%27%29%20or%20contains%28cat%2C%27"
 ```
-
-**Expected Contrast detections:**
-- **Assess (IAST):** XPath Injection finding with the data-flow trace from the Symfony `Request::query->get` source through the string concatenation to the `DOMXPath::query` sink.
-- **Protect (RASP):** None. Contrast does not currently ship a Protect/RASP rule for XPath Injection in any language agent. This demo exists specifically to illustrate the value of Assess for vulnerability classes that runtime blocking cannot address.
 
 **Impact:**
 - Bypass of intended search filtering
