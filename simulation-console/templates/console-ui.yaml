@@ -106,6 +106,8 @@ spec:
           env:
             - name: CONTRAST__AGENT__TOKEN
               value: {{ .Values.consoleui.contrastApiToken | default "" | quote }}
+            - name: TRAFFIC_AI_PHASE_ENABLED
+              value: {{ .Values.consoleui.trafficAiPhaseEnabled | quote }}
             - name: CONTRAST__UNIQ__NAME
               value: {{ .Values.consoleui.contrastUniqName | default "" | quote }}
             - name: CONTRAST__API__KEY

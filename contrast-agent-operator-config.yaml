@@ -13,6 +13,8 @@ spec:
           enable: true
         observe:
           enable: true
+          ai_usage:
+            enable: true
         agent:
           logger:
             level: INFO

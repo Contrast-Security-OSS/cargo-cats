@@ -79,10 +79,8 @@ public class ReportTemplateServlet extends HttpServlet {
             templateEngine.process("report-template", context, reader, writer);
             
             String result = writer.toString();
-            
-            // Return JSON response
-            String jsonResult = "{\"success\": true, \"output\": " + escapeJsonString(result) + "}";
-            response.getWriter().write(jsonResult);
+
+            response.getWriter().write("{\"success\": true, \"output\": " + escapeJsonString(result) + "}");
             
         } catch (Exception e) {
             response.setStatus(500);

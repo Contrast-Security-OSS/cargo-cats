@@ -191,6 +191,28 @@
                     </div>
                 </div>
             </div>
+            <div class="col-md-6 mb-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <i class="fas fa-robot feature-icon" style="color: #DD6E1E;"></i>
+                            <h5 class="card-title">Shipping Advisor <span class="badge rounded-pill ms-1" style="background: linear-gradient(135deg, #38B885 0%, #005A70 100%); font-size: 0.6rem;">AI</span></h5>
+                            <p class="card-text text-muted small">Ask anything about shipping your packages</p>
+                        </div>
+                        <div class="input-group mb-2">
+                            <input type="text" id="ai-prompt" class="form-control form-control-sm"
+                                   placeholder="e.g. What are best practices for fragile packages?"
+                                   value="What are the best practices for shipping cats safely?"
+                                   onkeydown="if(event.key==='Enter') askShippingAdvisor()">
+                            <button id="ai-ask-btn" class="btn btn-sm" onclick="askShippingAdvisor()"
+                                    style="background: linear-gradient(135deg, #38B885 0%, #005A70 100%); color: white; border: none;">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div id="ai-response" class="small" style="min-height: 3rem;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="row">
@@ -436,6 +458,28 @@
         
         // New fact button handler
         document.getElementById('new-fact-btn').addEventListener('click', fetchCatFact);
+
+        // AI Shipping Advisor
+        async function askShippingAdvisor() {
+            const prompt = document.getElementById('ai-prompt').value.trim();
+            if (!prompt) return;
+            const responseDiv = document.getElementById('ai-response');
+            const btn = document.getElementById('ai-ask-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            responseDiv.innerHTML = '<span class="text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Thinking...</span>';
+            try {
+                const res = await fetch('/api/ai/openai?prompt=' + encodeURIComponent(prompt));
+                const text = await res.text();
+                responseDiv.innerHTML = '<div class="alert alert-light py-2 mb-0 text-start" style="font-size:0.85rem;">' +
+                    '<i class="fas fa-robot me-1" style="color:#38B885;"></i>' + text + '</div>';
+            } catch (e) {
+                responseDiv.innerHTML = '<div class="alert alert-warning py-2 mb-0 small">AI service unavailable</div>';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+            }
+        }
     </script>
 </body>
 </html>

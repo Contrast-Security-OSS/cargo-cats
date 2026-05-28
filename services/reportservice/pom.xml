@@ -20,6 +20,13 @@
     </properties>
 
     <dependencies>
+        <!-- Official OpenAI Java SDK — used directly for shadow AI demo -->
+        <dependency>
+            <groupId>com.openai</groupId>
+            <artifactId>openai-java</artifactId>
+            <version>4.35.0</version>
+        </dependency>
+
         <!-- Vulnerable XDocReport FreeMarker dependency (CVE-2025-64087) -->
         <dependency>
             <groupId>fr.opensagres.xdocreport</groupId>

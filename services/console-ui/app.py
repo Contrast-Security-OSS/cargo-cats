@@ -102,6 +102,18 @@ contrast_base_url = ''
 contrast_api_key = ''
 contrast_api_authorization = ''
 
+
+def parse_bool_env(var_name: str, default: bool = False) -> bool:
+    """Parse common boolean env var values safely for Python 3.12+."""
+    value = os.getenv(var_name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+# Feature flag for optional AI phase in normal traffic generation.
+# Defaults to enabled to preserve existing behavior unless explicitly disabled.
+traffic_ai_phase_enabled = parse_bool_env('TRAFFIC_AI_PHASE_ENABLED', True)
+
 # Try to get Contrast API token from environment - do this only once at startup
 contrast_api_token = os.getenv('CONTRAST__AGENT__TOKEN', '')
 contrast_api_key = os.getenv('CONTRAST__API__KEY', '')
@@ -1918,7 +1930,7 @@ def traffic():
         
         # Successful login
         success_creds = {"username": "admin", "password": "password123"}
-        r = session.post("http://cargocats.localhost/login", data=success_creds, timeout=10, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/login", data=success_creds, timeout=10, allow_redirects=True)
         log_traffic_output(f"Successful login attempt - Status: {r.status_code}")
         
         # ================================================
@@ -1985,7 +1997,7 @@ def traffic():
             log_traffic_output(f"Using cat.jpg for image upload, size: {len(cat_image_data)} bytes")
         
         files = {'file': ('cat.jpg', cat_image_data, 'image/jpeg')}
-        r = session.post("http://cargocats.localhost/api/photos/upload", files=files, timeout=10, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/photos/upload", files=files, timeout=30, allow_redirects=False)
         log_traffic_output(f"Cat.jpg image upload - Status: {r.status_code}")
         
         # Parse the upload response to get the image path
@@ -2009,12 +2021,12 @@ def traffic():
         log_traffic_output(f"Non-existent image view test - Status: {r.status_code}")
         
         # Test upload without file parameter
-        r = session.post("http://cargocats.localhost/api/photos/upload", data={}, timeout=5, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/photos/upload", data={}, timeout=15, allow_redirects=False)
         log_traffic_output(f"Image upload without file test - Status: {r.status_code}")
         
         # Test upload with invalid file type (text file)
         invalid_files = {'file': ('test.txt', b'This is not an image', 'text/plain')}
-        r = session.post("http://cargocats.localhost/api/photos/upload", files=invalid_files, timeout=5, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/photos/upload", files=invalid_files, timeout=15, allow_redirects=False)
         log_traffic_output(f"Invalid file upload test - Status: {r.status_code}")
         
         # Add new cat with image
@@ -2023,12 +2035,12 @@ def traffic():
             "type": "Persian", 
             "image": f"/api/photos/view?path={uploaded_image_path}" if uploaded_image_path else None
         }
-        r = session.post("http://cargocats.localhost/api/cats", json=cat_data_with_image, timeout=5, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/cats", json=cat_data_with_image, timeout=15, allow_redirects=False)
         log_traffic_output(f"Cats API POST new cat with image - Status: {r.status_code}")
         
         # Add new cat without image (original test)
         cat_data = {"name": "muppet_no_image", "type": "Persian", "image": None}
-        r = session.post("http://cargocats.localhost/api/cats", json=cat_data, timeout=5, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/cats", json=cat_data, timeout=15, allow_redirects=False)
         log_traffic_output(f"Cats API POST new cat without image - Status: {r.status_code}")
         
         # Test DELETE cat endpoint using a separate session (not logged in)
@@ -2114,7 +2126,7 @@ def traffic():
                 "id": 1
             }
         }
-        r = session.post("http://cargocats.localhost/api/webhook/test-shipment-notification", json=test_notification_body, timeout=5, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/webhook/test-shipment-notification", json=test_notification_body, timeout=30, allow_redirects=False)
         log_traffic_output(f"Webhook API POST test-shipment-notification - Status: {r.status_code}")
         
         webhook_body = {"notificationUrl": "https://contrastsecurity.com", "webhookMethod": "GET"}
@@ -2122,7 +2134,7 @@ def traffic():
         log_traffic_output(f"Webhook API PATCH shipments/1/webhook - Status: {r.status_code}")
         
         body = {"url": "contrastsecurity.com"}
-        r = session.post("http://cargocats.localhost/api/webhook/test-connection", json=body, timeout=5, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/webhook/test-connection", json=body, timeout=30, allow_redirects=False)
         log_traffic_output(f"Webhook API POST test-connection - Status: {r.status_code}")
 
         # ================================================
@@ -2251,8 +2263,18 @@ def traffic():
             "origin": "Portland, OR",
             "destination": "Austin, TX"
         }
-        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data, timeout=10, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data, timeout=60, allow_redirects=False)
         log_traffic_output(f"Report generation POST - Status: {r.status_code}")
+
+        # Simulate clicking "Generate Summary" button with the rendered report text
+        try:
+            report_result = r.json()
+            if report_result.get("success") and report_result.get("output"):
+                summary_data = {"reportText": report_result["output"]}
+                r2 = session.post("http://cargocats.localhost/api/reports/summarize", json=summary_data, timeout=120, allow_redirects=False)
+                log_traffic_output(f"Report AI summary POST (ollama) - Status: {r2.status_code}")
+        except Exception as e:
+            log_traffic_output(f"Report summary skipped: {str(e)}", "WARNING")
 
         # Generate a second report with different data
         report_data_2 = {
@@ -2262,14 +2284,43 @@ def traffic():
             "origin": "Seattle, WA",
             "destination": "Denver, CO"
         }
-        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data_2, timeout=10, allow_redirects=False)
+        r = session.post("http://cargocats.localhost/api/reports/generate", json=report_data_2, timeout=60, allow_redirects=False)
         log_traffic_output(f"Second report generation POST - Status: {r.status_code}")
 
         # ================================================
-        # PHASE 10: TRACKING REPORT SERVICE
+        # PHASE 10: AI API INTEGRATION
+        # ================================================
+        if traffic_ai_phase_enabled:
+            traffic_state = "ai_integration"
+            log_traffic_output("Phase 10: AI API integration")
+
+            ai_available = False
+            # AI service health check
+            try:
+                r = session.get("http://cargocats.localhost/api/ai/health", timeout=60, allow_redirects=False)
+                log_traffic_output(f"AI service health check - Status: {r.status_code}")
+                # Treat 2xx and 3xx as available (includes redirects); 4xx/5xx as unavailable
+                ai_available = (r.status_code < 400)
+            except Exception as e:
+                log_traffic_output(f"AI health check failed: {str(e)}", "WARNING")
+
+            # Only make the slower OpenAI call when AI is actually enabled/healthy.
+            if ai_available:
+                try:
+                    r = session.get("http://cargocats.localhost/api/ai/openai?prompt=What%20are%20the%20best%20practices%20for%20shipping%20cats%20safely?", timeout=60, allow_redirects=False)
+                    log_traffic_output(f"AI OpenAI API call - Status: {r.status_code}")
+                except Exception as e:
+                    log_traffic_output(f"AI OpenAI call failed: {str(e)}", "WARNING")
+            else:
+                log_traffic_output("AI phase skipped: AI service is disabled or unavailable", "WARNING")
+        else:
+            log_traffic_output("Phase 10 skipped: TRAFFIC_AI_PHASE_ENABLED is false")
+
+        # ================================================
+        # PHASE 11: TRACKING REPORT SERVICE
         # ================================================
         traffic_state = "tracking_report"
-        log_traffic_output("Phase 10: Tracking report service")
+        log_traffic_output("Phase 11: Tracking report service")
 
         if shipment_tracking_id:
             # Normal lookup by tracking ID

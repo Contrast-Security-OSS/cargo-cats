@@ -1,6 +1,6 @@
 # Alternative Cluster Setup Guide
 
-If you don't have access to Docker Desktop, you can set up a local Kubernetes cluster using **k3s** or **Minikube**. Once your cluster is running with the prerequisites below satisfied, return to the main [README](README.md#setup) to continue with Setup and Deployment.
+If you don't have access to Docker Desktop, you can set up a local Kubernetes cluster using **k3s** or **Minikube**. Once your cluster is running with the prerequisites below satisfied, return to the main [README](../README.md#setup) to continue with Setup and Deployment.
 
 | Section | Description |
 |---|---|
@@ -44,7 +44,7 @@ sudo usermod -aG docker $USER
 
 ### 2. Install k3s
 
-> **Important:** k3s uses whatever CPU and memory are available on the host. Ensure your machine has at least 4 vCPUs and 14 GiB of RAM (e.g., a `t3.xlarge` EC2 instance). See [EC2 Recommendations](EC2-RECOMMENDATIONS.md) for guidance.
+> **Important:** k3s uses whatever CPU and memory are available on the host. Ensure your machine has at least 4 vCPUs and 14 GiB of RAM (e.g., a `t3.xlarge` EC2 instance). See [EC2 Recommendations](ec2-recommendations.md) for guidance.
 
 ```bash
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --docker --write-kubeconfig-mode 644 --disable traefik" sh -s -
@@ -145,7 +145,7 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
 ### 3. Start the Cluster
 
-> **Important:** Minikube reserves CPU for its own system components. Give it all available CPUs and at least 14 GiB of memory. On EC2, Minikube requires at least a `t3.2xlarge` (8 vCPU) — see [EC2 Recommendations](EC2-RECOMMENDATIONS.md).
+> **Important:** Minikube reserves CPU for its own system components. Give it all available CPUs and at least 14 GiB of memory. On EC2, Minikube requires at least a `t3.2xlarge` (8 vCPU) — see [EC2 Recommendations](ec2-recommendations.md).
 
 ```bash
 minikube start --driver=docker --memory=14336 --cpus=$(nproc)
@@ -253,4 +253,4 @@ To stop the tunnel, press `Ctrl+C`.
 
 ## Next Steps
 
-Once your cluster is running and `kubectl get nodes` shows a **Ready** node, return to the main [README](README.md#setup) to continue with environment configuration and deployment.
+Once your cluster is running and `kubectl get nodes` shows a **Ready** node, return to the main [README](../README.md#setup) to continue with environment configuration and deployment.

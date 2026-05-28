@@ -53,6 +53,30 @@ public class ReportServiceProxy {
     }
 
     /**
+     * Request an AI-generated logistics insight for the given report text.
+     */
+    public ResponseEntity<String> getInsight(String reportText) {
+        try {
+            String url = reportServiceUrl + "/insight";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+            body.add("reportText", reportText);
+
+            HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
+
+            return restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("{\"error\": \"Report service unavailable: " + e.getMessage() + "\"}");
+        }
+    }
+
+    /**
      * Health check for the report service.
      */
     public ResponseEntity<String> healthCheck() {

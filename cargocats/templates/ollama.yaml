@@ -1,0 +1,82 @@
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: ollama
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.7.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              ollama serve &
+              OLLAMA_PID=$!
+              until ollama list > /dev/null 2>&1; do sleep 1; done
+              ollama pull {{ .Values.ollama.model }}
+              printf 'FROM %s\nPARAMETER num_thread 2\nPARAMETER num_ctx 2048\nPARAMETER num_predict 150\n' "{{ .Values.ollama.model }}" > /tmp/Modelfile.tuned
+              ollama create {{ .Values.ollama.model }}-tuned -f /tmp/Modelfile.tuned
+              wait $OLLAMA_PID
+          ports:
+            - containerPort: 11434
+          env:
+            - name: OLLAMA_NUM_PARALLEL
+              value: "1"
+            - name: OLLAMA_KEEP_ALIVE
+              value: "24h"
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+            limits:
+              memory: "3Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - ollama list | grep -q {{ printf "%s-tuned" .Values.ollama.model | quote }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 60
+            timeoutSeconds: 5
+      volumes:
+        - name: ollama-data
+          emptyDir: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: ollama
+  ports:
+    - protocol: TCP
+      port: 11434
+      targetPort: 11434

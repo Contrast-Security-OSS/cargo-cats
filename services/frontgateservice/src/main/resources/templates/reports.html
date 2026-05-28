@@ -202,6 +202,13 @@ Thank you for shipping with ${company}!</textarea>
                     </div>
                     <div class="card-body">
                         <div class="output-area" id="reportOutput"></div>
+                        <button type="button" id="summarizeBtn" class="btn btn-primary-custom mt-3" style="display:none;" onclick="generateSummary()">
+                            <i class="fas fa-chart-line me-2"></i>Generate Summary
+                        </button>
+                        <div id="reportInsight" style="display:none; margin-top: 16px; padding: 12px 15px; background-color: #f0f9f4; border-left: 3px solid #38B885; border-radius: 5px;">
+                            <strong style="font-size: 13px; color: #1C2343;"><i class="fas fa-chart-line me-1"></i> Logistics Analysis</strong>
+                            <p id="insightText" style="margin: 6px 0 0; font-size: 13px; color: #444;"></p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -394,15 +401,53 @@ The \${company} Team`
                 if (result.success) {
                     outputArea.textContent = result.output;
                     outputArea.style.color = '#38B885';
+                    document.getElementById('summarizeBtn').style.display = 'inline-block';
+                    document.getElementById('reportInsight').style.display = 'none';
                 } else {
                     outputArea.textContent = 'Error: ' + (result.error || 'Unknown error');
                     outputArea.style.color = '#dc3545';
+                    document.getElementById('summarizeBtn').style.display = 'none';
                 }
             } catch (err) {
                 outputArea.textContent = 'Request failed: ' + err.message;
                 outputArea.style.color = '#dc3545';
+                document.getElementById('summarizeBtn').style.display = 'none';
             }
         });
+
+        async function generateSummary() {
+            const btn = document.getElementById('summarizeBtn');
+            const insightEl = document.getElementById('reportInsight');
+            const insightText = document.getElementById('insightText');
+            const reportText = document.getElementById('reportOutput').textContent;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+
+            try {
+                const response = await fetch('/api/reports/summarize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reportText })
+                });
+
+                const result = await response.json();
+
+                if (result.logistics_insight) {
+                    insightEl.style.display = 'block';
+                    insightText.textContent = result.logistics_insight;
+                } else {
+                    insightEl.style.display = 'block';
+                    insightText.textContent = 'No insight available.';
+                }
+            } catch (err) {
+                insightEl.style.display = 'block';
+                insightText.textContent = 'Summary request failed: ' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Generate Summary';
+            }
+        }
     </script>
 </body>
 </html>

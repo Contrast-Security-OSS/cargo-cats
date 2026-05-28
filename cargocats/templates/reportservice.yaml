@@ -28,6 +28,12 @@ spec:
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.reportservice.name }}'
           - name: CONTRAST__SERVER__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.reportservice.name }}-agent'
+          - name: OLLAMA_BASE_URL
+            value: "http://ollama:11434/v1"
+          - name: OLLAMA_MODEL
+            value: {{ printf "%s-tuned" .Values.ollama.model | quote }}
+          - name: AI_INSIGHTS_ENABLED
+            value: {{ .Values.ai.shadowEnabled | quote }}
           ports:
             - containerPort: 8080
           resources:

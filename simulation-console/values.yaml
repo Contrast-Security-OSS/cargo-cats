@@ -9,6 +9,7 @@ zapproxy:
 consoleui:
   image: console-ui:latest
   name: console-ui
+  trafficAiPhaseEnabled: true
   contrastApiToken: "default-token"
   contrastUniqName: "default"
   contrastApiKey: "default-api-key"

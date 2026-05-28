@@ -1,0 +1,63 @@
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: '{{.Release.Name}}-{{ .Values.aiservice.name }}'
+  namespace: {{ .Release.Namespace }}
+  labels:
+    contrast-agent: flex
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.aiservice.name }}
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
+      labels:
+        app: {{ .Values.aiservice.name }}
+    spec:
+      containers:
+        - name: {{ .Values.aiservice.name }}
+          image: {{ .Values.aiservice.image }}
+          imagePullPolicy: Never
+          env:
+          - name: CONTRAST__APPLICATION__NAME
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.aiservice.name }}'
+          - name: CONTRAST__SERVER__NAME
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.aiservice.name }}-agent'
+          - name: AI_DEMO_OPENAI_BASE_URL
+            value: "http://ollama:11434/v1"
+          - name: AI_DEMO_MODEL
+            value: {{ printf "%s-tuned" .Values.ollama.model | quote }}
+          - name: AI_DEMO_ENABLED
+            value: {{ .Values.ai.chatbotEnabled | quote }}
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+              ephemeral-storage: "512Mi"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+              ephemeral-storage: "1Gi"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.aiservice.name }}
+  namespace: default
+spec:
+  selector:
+    app: {{ .Values.aiservice.name }}
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
