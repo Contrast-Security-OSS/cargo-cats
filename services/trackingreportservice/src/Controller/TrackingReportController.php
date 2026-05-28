@@ -349,7 +349,7 @@ class TrackingReportController extends AbstractController
      * realpath() check, no basename() stripping, no allowlist. An attacker
      * can supply ../ segments to read arbitrary files on the filesystem.
      *
-     * Example payload: ?file=../../../../etc/passwd
+     * Example payload: ?file=../../../../../etc/passwd
      */
     #[Route('/tracking-report/download', name: 'tracking_report_download', methods: ['GET'])]
     public function downloadReport(Request $request): Response

