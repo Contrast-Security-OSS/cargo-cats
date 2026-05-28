@@ -2248,11 +2248,11 @@ def traffic():
         log_traffic_output("Phase 9: Report generation")
 
         # Visit reports page
-        r = session.get("http://cargocats.localhost/reports", timeout=5, allow_redirects=False)
+        r = session.get("http://cargocats.localhost/reports", timeout=30, allow_redirects=False)
         log_traffic_output(f"Visited reports page - Status: {r.status_code}")
 
         # Check report service health
-        r = session.get("http://cargocats.localhost/api/reports/health", timeout=5, allow_redirects=False)
+        r = session.get("http://cargocats.localhost/api/reports/health", timeout=15, allow_redirects=False)
         log_traffic_output(f"Report service health check - Status: {r.status_code}")
 
         # Generate a normal shipping report
