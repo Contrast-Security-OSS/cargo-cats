@@ -62,7 +62,7 @@ public class TrackingReportServiceProxy {
         }
     }
 
-    public ResponseEntity<byte[]> downloadReport(String file) {
+    public ResponseEntity<byte[]> downloadTrackingReport(String file) {
         try {
             String url = trackingReportServiceUrl + "/api/tracking-report/download?file="
                     + URLEncoder.encode(file, StandardCharsets.UTF_8);

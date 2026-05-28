@@ -300,7 +300,7 @@ public class ApiController {
     @GetMapping("/tracking-report/download")
     public ResponseEntity<byte[]> downloadTrackingReport(@RequestParam String file) {
         logger.info("API request: Downloading tracking report file '{}'", file);
-        ResponseEntity<byte[]> response = trackingReportServiceProxy.downloadReport(file);
+        ResponseEntity<byte[]> response = trackingReportServiceProxy.downloadTrackingReport(file);
         return ResponseEntity.status(response.getStatusCode())
                 .contentType(org.springframework.http.MediaType.TEXT_PLAIN)
                 .body(response.getBody());
