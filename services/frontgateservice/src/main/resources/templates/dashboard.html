@@ -390,6 +390,17 @@
                 });
         });
 
+        // Escape HTML special chars to prevent DOM-XSS when interpolating
+        // user-controlled values into template literals.
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // Tracking history search handler
         document.getElementById('dashboardHistorySearchForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -407,23 +418,24 @@
                 .then(r => r.json())
                 .then(data => {
                     const results = data.results || [];
+                    const termEsc = escapeHtml(term);
                     if (results.length === 0) {
-                        resultDiv.innerHTML = `<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No tracking history matched "${term}".</div>`;
+                        resultDiv.innerHTML = `<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No tracking history matched "${termEsc}".</div>`;
                         return;
                     }
                     const rows = results.map(s => `
                         <tr>
-                            <td><code>${s.tracking_id}</code></td>
-                            <td>${s.cat}</td>
-                            <td>${s.origin}</td>
-                            <td>${s.destination}</td>
-                            <td><span class="badge bg-info">${s.current_status}</span></td>
-                            <td>${s.event_count}</td>
+                            <td><code>${escapeHtml(s.tracking_id)}</code></td>
+                            <td>${escapeHtml(s.cat)}</td>
+                            <td>${escapeHtml(s.origin)}</td>
+                            <td>${escapeHtml(s.destination)}</td>
+                            <td><span class="badge bg-info">${escapeHtml(s.current_status)}</span></td>
+                            <td>${escapeHtml(s.event_count)}</td>
                         </tr>
                     `).join('');
                     resultDiv.innerHTML = `
                         <div class="alert alert-success py-2 mb-2">
-                            <i class="fas fa-check-circle me-2"></i>${data.count} result${data.count === 1 ? '' : 's'} for "${term}"
+                            <i class="fas fa-check-circle me-2"></i>${data.count} result${data.count === 1 ? '' : 's'} for "${termEsc}"
                         </div>
                         <div class="table-responsive">
                             <table class="table table-sm table-striped">
@@ -437,7 +449,7 @@
                 })
                 .catch(error => {
                     console.error('History search error:', error);
-                    resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Search failed: ${error.message}</div>`;
+                    resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Search failed: ${escapeHtml(error.message)}</div>`;
                 });
         });
 

@@ -100,16 +100,3 @@ spec:
     labels:
       - name: contrast-agent
         value: flex
----
-apiVersion: agents.contrastsecurity.com/v1beta1
-kind: AgentInjector
-metadata:
-  name: contrast-php-injector
-  namespace: default
-spec:
-  enabled: true
-  type: php
-  selector:
-    labels:
-      - name: contrast-agent
-        value: php

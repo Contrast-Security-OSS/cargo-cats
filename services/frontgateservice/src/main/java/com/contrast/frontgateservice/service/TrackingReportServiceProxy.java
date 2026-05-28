@@ -45,7 +45,8 @@ public class TrackingReportServiceProxy {
 
     public ResponseEntity<String> searchTrackingHistory(String q) {
         try {
-            String url = trackingReportServiceUrl + "/api/tracking-report/search?q=" + q;
+            String url = trackingReportServiceUrl + "/api/tracking-report/search?q="
+                    + URLEncoder.encode(q, StandardCharsets.UTF_8);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));

@@ -28,6 +28,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.List;
@@ -197,7 +199,9 @@ public class ApiController {
                                     "</a>" +
                                 "</div>" +
                             "</div>",
-                            trackingIdValue, badgeClass, statusText, trackingIdValue, trackingIdValue
+                            trackingIdValue, badgeClass, statusText,
+                            URLEncoder.encode(trackingIdValue, StandardCharsets.UTF_8),
+                            URLEncoder.encode(trackingIdValue, StandardCharsets.UTF_8)
                         );
                         
                         logger.debug("Returning success HTML response");
