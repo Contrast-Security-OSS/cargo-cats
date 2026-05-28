@@ -26,7 +26,7 @@ flowchart TB
                 LS["<b>labelservice</b><br/>Node.js<br/>━━━━━━<br/><font color='#c00'>⚠️ SSJS</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 DC["<b>docservice</b><br/>Python<br/>━━━━━━<br/><font color='#c00'>⚠️ XXE</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 RS["<b>reportservice</b><br/>Java<br/>━━━━━━<br/><font color='#c00'>⚠️ SSTI</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
-                TR["<b>trackingreportservice</b><br/>PHP<br/>━━━━━━<br/><font color='#c00'>⚠️ Path Traversal</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                TR["<b>trackingreportservice</b><br/>PHP<br/>━━━━━━<br/><font color='#c00'>⚠️ Path Traversal · XPath Injection</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 DB[("<b>MySQL</b><br/>db + credit_cards")]
             end
         end
@@ -98,7 +98,7 @@ The core application consists of eight intentionally vulnerable microservices:
 - **Labelservice** (Node.js) - Generates shipping labels and handles address processing
 - **Docservice** (Python/Flask) - DOCX document processor
 - **Reportservice** (Java/Tomcat) - Shipping report template engine
-- **Trackingreportservice** (PHP/Symfony) - Generates and serves persisted tracking reports. Path Traversal vulnerability in the report download endpoint.
+- **Trackingreportservice** (PHP/Symfony) - Generates and serves persisted tracking reports. Path Traversal in the report download endpoint (Assess + Protect) and XPath Injection in the search endpoint (Assess only, no Protect rule for XPath).
 
 ### Simulation and Monitoring Tools
 
@@ -125,6 +125,7 @@ This documentation covers:
 - Path Traversal (.NET imageservice and PHP trackingreportservice)
 - XML External Entity (XXE) Injection
 - Server-Side Template Injection (SSTI) / RCE (CVE-2025-64087)
+- XPath Injection (PHP trackingreportservice, Assess-only)
 - Server-Side JavaScript Injection (SSJS)
 - Untrusted Deserialization
 - Weak Password Storage (MD5 Hashing)

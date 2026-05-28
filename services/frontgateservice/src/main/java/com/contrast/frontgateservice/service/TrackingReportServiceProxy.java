@@ -43,6 +43,24 @@ public class TrackingReportServiceProxy {
         }
     }
 
+    public ResponseEntity<String> searchTrackingHistory(String q) {
+        try {
+            String url = trackingReportServiceUrl + "/api/tracking-report/search?q=" + q;
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            return restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("{\"error\": \"Unable to connect to tracking report service\"}");
+        }
+    }
+
     public ResponseEntity<String> addTrackingEvent(Map<String, Object> body) {
         try {
             String url = trackingReportServiceUrl + "/api/tracking-report/events";

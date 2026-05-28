@@ -281,6 +281,68 @@ class TrackingReportController extends AbstractController
     }
 
     /**
+     * Search tracking history by tracking ID fragment or origin/destination city.
+     *
+     * VULNERABLE: The search term is interpolated directly into the XPath query.
+     * Contrast Assess (IAST) detects this via the data-flow trace from
+     * Request::query->get to DOMXPath::query. There is no Protect/RASP rule
+     * for XPath injection, so this is an Assess-only finding by design.
+     */
+    #[Route('/tracking-report/search', name: 'tracking_report_search', methods: ['GET'], priority: 10)]
+    public function searchTrackingHistory(Request $request): JsonResponse
+    {
+        $term = $request->query->get('q', '');
+
+        if (empty($term)) {
+            return $this->json(['error' => 'Search term is required'], 400);
+        }
+
+        try {
+            $xml = new \DOMDocument();
+            $xml->load($this->xmlFilePath);
+
+            $xpath = new \DOMXPath($xml);
+
+            // VULNERABLE: Direct XPath injection, $term concatenated without sanitization
+            $termLower = strtolower($term);
+            $query = "//shipment[" .
+                "contains(translate(@trackingId,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'$termLower') or " .
+                "contains(translate(origin,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'$termLower') or " .
+                "contains(translate(destination,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'$termLower') or " .
+                "contains(translate(cat,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'$termLower')" .
+            "]";
+
+            $results = $xpath->query($query);
+
+            $shipments = [];
+            foreach ($results as $shipmentNode) {
+                $shipments[] = [
+                    'tracking_id'    => $shipmentNode->getAttribute('trackingId'),
+                    'cat'            => $shipmentNode->getElementsByTagName('cat')->item(0)->textContent,
+                    'origin'         => $shipmentNode->getElementsByTagName('origin')->item(0)->textContent,
+                    'destination'    => $shipmentNode->getElementsByTagName('destination')->item(0)->textContent,
+                    'current_status' => $shipmentNode->getElementsByTagName('currentStatus')->item(0)->textContent,
+                    'event_count'    => $shipmentNode->getElementsByTagName('event')->length,
+                ];
+            }
+
+            return $this->json([
+                'search_term' => $term,
+                'query_used'  => $query,
+                'results'     => $shipments,
+                'count'       => count($shipments),
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'error'           => 'Search failed',
+                'message'         => $e->getMessage(),
+                'query_attempted' => $query ?? 'unknown',
+            ], 500);
+        }
+    }
+
+    /**
      * Stream a saved per-shipment tracking report from disk.
      *
      * VULNERABLE: $file is concatenated directly to the base path. No
