@@ -41,6 +41,12 @@ COPY . /var/www
 RUN mkdir -p /var/www/var/cache /var/www/var/log /var/www/var/reports /var/www/var/reports/exports \
     && chown -R www-data:www-data /var/www
 
+# Symfony's autoload_runtime bootEnv() requires a .env file at the project
+# root, even when APP_* are set in the process env. The Helm chart overrides
+# these at runtime via Kubernetes env vars.
+RUN printf 'APP_ENV=prod\nAPP_SECRET=buildsecret\nAPP_DEBUG=0\n' > /var/www/.env \
+    && chown www-data:www-data /var/www/.env
+
 RUN APP_ENV=prod APP_SECRET=buildsecret php bin/console cache:warmup --env=prod --no-debug \
     && chown -R www-data:www-data /var/www/var
 
