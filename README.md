@@ -26,6 +26,7 @@ flowchart TB
                 LS["<b>labelservice</b><br/>Node.js<br/>━━━━━━<br/><font color='#c00'>⚠️ SSJS</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 DC["<b>docservice</b><br/>Python<br/>━━━━━━<br/><font color='#c00'>⚠️ XXE</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 RS["<b>reportservice</b><br/>Java<br/>━━━━━━<br/><font color='#c00'>⚠️ SSTI</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                TR["<b>trackingreportservice</b><br/>PHP<br/>━━━━━━<br/><font color='#c00'>⚠️ Path Traversal</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 DB[("<b>MySQL</b><br/>db + credit_cards")]
             end
         end
@@ -59,6 +60,7 @@ flowchart TB
     FG --> LS
     FG --> DC
     FG --> RS
+    FG --> TR
     DS --> DB
     WH --> DB
 
@@ -70,7 +72,7 @@ flowchart TB
     classDef vuln fill:#e8e8e8,stroke:#888,color:#000
     classDef sim  fill:#e6f3ff,stroke:#06c,color:#000
     classDef supp fill:#fff4d4,stroke:#c80,color:#000
-    class FG,DS,WH,IS,LS,DC,RS,DB,Ingress vuln
+    class FG,DS,WH,IS,LS,DC,RS,TR,DB,Ingress vuln
     class CU,ZAP sim
     class EX,CDC,OSN,OSD supp
 ```
@@ -87,7 +89,7 @@ flowchart TB
 
 ### Vulnerable Application Services
 
-The core application consists of seven intentionally vulnerable microservices:
+The core application consists of eight intentionally vulnerable microservices:
 
 - **Frontgateservice** (Java/Spring Boot) - Web frontend, authentication, and API gateway to other services
 - **Dataservice** (Java/Spring Boot) - Handles data operations and payment processing
@@ -96,6 +98,7 @@ The core application consists of seven intentionally vulnerable microservices:
 - **Labelservice** (Node.js) - Generates shipping labels and handles address processing
 - **Docservice** (Python/Flask) - DOCX document processor
 - **Reportservice** (Java/Tomcat) - Shipping report template engine
+- **Trackingreportservice** (PHP/Symfony) - Generates and serves persisted tracking reports. Path Traversal vulnerability in the report download endpoint.
 
 ### Simulation and Monitoring Tools
 
@@ -119,7 +122,7 @@ This documentation covers:
 - Log4Shell (CVE-2021-44228)
 - Server-Side Request Forgery (SSRF)
 - Command Injection
-- Path Traversal
+- Path Traversal (.NET imageservice and PHP trackingreportservice)
 - XML External Entity (XXE) Injection
 - Server-Side Template Injection (SSTI) / RCE (CVE-2025-64087)
 - Server-Side JavaScript Injection (SSJS)
