@@ -43,24 +43,6 @@ public class TrackingReportServiceProxy {
         }
     }
 
-    public ResponseEntity<String> searchTrackingHistory(String q) {
-        try {
-            String url = trackingReportServiceUrl + "/api/tracking-report/search?q=" + q;
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-            return restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-        } catch (HttpClientErrorException | HttpServerErrorException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("{\"error\": \"Unable to connect to tracking report service\"}");
-        }
-    }
-
     public ResponseEntity<String> addTrackingEvent(Map<String, Object> body) {
         try {
             String url = trackingReportServiceUrl + "/api/tracking-report/events";
@@ -77,6 +59,26 @@ public class TrackingReportServiceProxy {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("{\"error\": \"Unable to connect to tracking report service\"}");
+        }
+    }
+
+    public ResponseEntity<byte[]> downloadReport(String file) {
+        try {
+            String url = trackingReportServiceUrl + "/api/tracking-report/download?file="
+                    + URLEncoder.encode(file, StandardCharsets.UTF_8);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setAccept(Collections.singletonList(MediaType.ALL));
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            return restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(e.getResponseBodyAsByteArray());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(("{\"error\": \"Unable to connect to tracking report service\"}").getBytes(StandardCharsets.UTF_8));
         }
     }
 
