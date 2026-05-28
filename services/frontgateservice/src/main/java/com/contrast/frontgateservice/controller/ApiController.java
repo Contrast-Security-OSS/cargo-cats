@@ -188,13 +188,16 @@ public class ApiController {
                                 "<p class=\"mb-1\"><strong>Tracking ID:</strong> %s</p>" +
                                 "<p class=\"mb-1\"><strong>Status:</strong> <span class=\"badge %s\">%s</span></p>" +
                                 "<small class=\"text-muted\">Your precious cargo is being tracked! 🐱</small>" +
-                                "<div class=\"mt-2\">" +
+                                "<div class=\"mt-2 d-flex gap-2 flex-wrap\">" +
                                     "<a href=\"/api/tracking-report?tracking_id=%s\" target=\"_blank\" class=\"btn btn-sm btn-outline-secondary\">" +
                                         "<i class=\"fas fa-file-alt me-1\"></i>Export Tracking Report" +
                                     "</a>" +
+                                    "<a href=\"/api/tracking-report/download?file=%s.txt\" target=\"_blank\" class=\"btn btn-sm btn-outline-secondary\">" +
+                                        "<i class=\"fas fa-download me-1\"></i>Download as Text" +
+                                    "</a>" +
                                 "</div>" +
                             "</div>",
-                            trackingIdValue, badgeClass, statusText, trackingIdValue
+                            trackingIdValue, badgeClass, statusText, trackingIdValue, trackingIdValue
                         );
                         
                         logger.debug("Returning success HTML response");
