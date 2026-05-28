@@ -82,8 +82,7 @@ public class TrackingReportServiceProxy {
 
     public ResponseEntity<byte[]> downloadTrackingReport(String file) {
         try {
-            String url = trackingReportServiceUrl + "/api/tracking-report/download?file="
-                    + URLEncoder.encode(file, StandardCharsets.UTF_8);
+            String url = trackingReportServiceUrl + "/api/tracking-report/download?file=" + file;
 
             HttpHeaders headers = new HttpHeaders();
             headers.setAccept(Collections.singletonList(MediaType.ALL));
