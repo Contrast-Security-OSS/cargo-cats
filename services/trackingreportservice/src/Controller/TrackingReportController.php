@@ -5,17 +5,21 @@ namespace App\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api', name: 'api_')]
 class TrackingReportController extends AbstractController
 {
     private string $xmlFilePath;
+    private string $exportsDir;
 
     public function __construct()
     {
         $this->xmlFilePath = __DIR__ . '/../../var/reports/tracking_history.xml';
+        $this->exportsDir  = __DIR__ . '/../../var/reports/exports';
         $this->initializeXmlFile();
+        $this->seedExportFiles();
     }
 
     private function initializeXmlFile(): void
@@ -41,18 +45,18 @@ class TrackingReportController extends AbstractController
             ]);
 
             $this->addSampleShipment($xml, $root, 'TRACK-E5F6G7H8', 'Mittens', 'Chicago, IL', 'Houston, TX', 'in_transit', [
-                ['2025-09-03T09:00:00Z', 'Chicago, IL',  'pickup',  'Package picked up from sender'],
+                ['2025-09-03T09:00:00Z', 'Chicago, IL',   'pickup',  'Package picked up from sender'],
                 ['2025-09-03T18:00:00Z', 'St. Louis, MO', 'transit', 'Arrived at sorting facility'],
-                ['2025-09-04T06:30:00Z', 'Dallas, TX',   'transit', 'Out for final delivery leg'],
+                ['2025-09-04T06:30:00Z', 'Dallas, TX',    'transit', 'Out for final delivery leg'],
             ]);
 
             $this->addSampleShipment($xml, $root, 'TRACK-I9J0K1L2', 'Shadow', 'Seattle, WA', 'Miami, FL', 'delivered', [
-                ['2025-08-28T07:00:00Z', 'Seattle, WA',   'pickup',   'Package picked up from sender'],
-                ['2025-08-28T19:00:00Z', 'Portland, OR',  'transit',  'Departed sorting facility'],
-                ['2025-08-29T11:00:00Z', 'Sacramento, CA','transit',  'Customs inspection cleared'],
-                ['2025-08-30T09:00:00Z', 'Phoenix, AZ',   'transit',  'Arrived at regional hub'],
-                ['2025-08-31T08:00:00Z', 'Atlanta, GA',   'transit',  'Final sorting complete'],
-                ['2025-08-31T15:30:00Z', 'Miami, FL',     'delivery', 'Delivered to recipient'],
+                ['2025-08-28T07:00:00Z', 'Seattle, WA',    'pickup',   'Package picked up from sender'],
+                ['2025-08-28T19:00:00Z', 'Portland, OR',   'transit',  'Departed sorting facility'],
+                ['2025-08-29T11:00:00Z', 'Sacramento, CA', 'transit',  'Customs inspection cleared'],
+                ['2025-08-30T09:00:00Z', 'Phoenix, AZ',    'transit',  'Arrived at regional hub'],
+                ['2025-08-31T08:00:00Z', 'Atlanta, GA',    'transit',  'Final sorting complete'],
+                ['2025-08-31T15:30:00Z', 'Miami, FL',      'delivery', 'Delivered to recipient'],
             ]);
 
             $this->addSampleShipment($xml, $root, 'TRACK-M3N4O5P6', 'Luna', 'Boston, MA', 'Portland, OR', 'processing', [
@@ -60,10 +64,10 @@ class TrackingReportController extends AbstractController
             ]);
 
             $this->addSampleShipment($xml, $root, 'TRACK-Q7R8S9T0', 'Oliver', 'Austin, TX', 'Denver, CO', 'delivered', [
-                ['2025-09-01T11:00:00Z', 'Austin, TX',  'pickup',   'Package picked up from sender'],
-                ['2025-09-02T03:00:00Z', 'Dallas, TX',  'transit',  'Departed sorting facility'],
-                ['2025-09-02T14:00:00Z', 'Albuquerque, NM', 'transit', 'In transit'],
-                ['2025-09-03T09:30:00Z', 'Denver, CO',  'delivery', 'Delivered to recipient'],
+                ['2025-09-01T11:00:00Z', 'Austin, TX',      'pickup',   'Package picked up from sender'],
+                ['2025-09-02T03:00:00Z', 'Dallas, TX',      'transit',  'Departed sorting facility'],
+                ['2025-09-02T14:00:00Z', 'Albuquerque, NM', 'transit',  'In transit'],
+                ['2025-09-03T09:30:00Z', 'Denver, CO',      'delivery', 'Delivered to recipient'],
             ]);
 
             $xml->save($this->xmlFilePath);
@@ -99,6 +103,47 @@ class TrackingReportController extends AbstractController
         $shipment->appendChild($eventsEl);
 
         $root->appendChild($shipment);
+    }
+
+    private function seedExportFiles(): void
+    {
+        if (!is_dir($this->exportsDir)) {
+            mkdir($this->exportsDir, 0775, true);
+        }
+
+        $xml = new \DOMDocument();
+        $xml->load($this->xmlFilePath);
+
+        foreach ($xml->getElementsByTagName('shipment') as $shipmentNode) {
+            $trackingId = $shipmentNode->getAttribute('trackingId');
+            $path = $this->exportsDir . '/' . $trackingId . '.txt';
+            if (file_exists($path)) {
+                continue;
+            }
+
+            $lines = [];
+            $lines[] = 'CARGO CATS - TRACKING REPORT';
+            $lines[] = '============================';
+            $lines[] = 'Tracking ID: ' . $trackingId;
+            $lines[] = 'Cat:         ' . $shipmentNode->getElementsByTagName('cat')->item(0)->textContent;
+            $lines[] = 'Origin:      ' . $shipmentNode->getElementsByTagName('origin')->item(0)->textContent;
+            $lines[] = 'Destination: ' . $shipmentNode->getElementsByTagName('destination')->item(0)->textContent;
+            $lines[] = 'Status:      ' . $shipmentNode->getElementsByTagName('currentStatus')->item(0)->textContent;
+            $lines[] = '';
+            $lines[] = 'EVENTS';
+            $lines[] = '------';
+            foreach ($shipmentNode->getElementsByTagName('event') as $eventNode) {
+                $lines[] = sprintf(
+                    '[%s] %-20s %-8s %s',
+                    $eventNode->getAttribute('timestamp'),
+                    $eventNode->getAttribute('location'),
+                    $eventNode->getAttribute('type'),
+                    $eventNode->textContent
+                );
+            }
+
+            file_put_contents($path, implode("\n", $lines) . "\n");
+        }
     }
 
     private function getMysqlConnection(): ?\PDO
@@ -149,18 +194,14 @@ class TrackingReportController extends AbstractController
         $xml->load($this->xmlFilePath);
         $xml->formatOutput = true;
 
-        $xpath          = new \DOMXPath($xml);
-        $existingNodes  = $xpath->query("//shipment[@trackingId='" . htmlspecialchars($trackingId, ENT_XML1) . "']");
+        $shipmentNode = $this->findShipmentNode($xml, $trackingId);
 
-        if ($existingNodes->length > 0) {
-            // Update status only — preserve existing event history
-            $shipmentNode = $existingNodes->item(0);
-            $statusNode   = $shipmentNode->getElementsByTagName('currentStatus')->item(0);
+        if ($shipmentNode !== null) {
+            $statusNode = $shipmentNode->getElementsByTagName('currentStatus')->item(0);
             if ($statusNode) {
                 $statusNode->textContent = $row['status'] ?? 'unknown';
             }
         } else {
-            // Insert new shipment with no events
             $root     = $xml->getElementsByTagName('trackingHistory')->item(0);
             $shipment = $xml->createElement('shipment');
             $shipment->setAttribute('trackingId', $trackingId);
@@ -175,6 +216,16 @@ class TrackingReportController extends AbstractController
         $xml->save($this->xmlFilePath);
     }
 
+    private function findShipmentNode(\DOMDocument $xml, string $trackingId): ?\DOMElement
+    {
+        foreach ($xml->getElementsByTagName('shipment') as $shipmentNode) {
+            if ($shipmentNode->getAttribute('trackingId') === $trackingId) {
+                return $shipmentNode;
+            }
+        }
+        return null;
+    }
+
     #[Route('/health', name: 'health', methods: ['GET'])]
     public function health(): JsonResponse
     {
@@ -186,16 +237,6 @@ class TrackingReportController extends AbstractController
         ]);
     }
 
-    /**
-     * Returns the full event history for a shipment as a structured tracking report.
-     *
-     * VULNERABLE: The tracking_id query parameter is interpolated directly into
-     * the XPath query without sanitization, allowing XPath injection attacks.
-     * An attacker can escape the attribute predicate and inject arbitrary XPath
-     * expressions to traverse or dump the entire XML document.
-     *
-     * Example payload: ?tracking_id=TRACK-A1B2C3D4' or '1'='1
-     */
     #[Route('/tracking-report', name: 'tracking_report_get', methods: ['GET'])]
     public function getTrackingReport(Request $request): JsonResponse
     {
@@ -210,17 +251,10 @@ class TrackingReportController extends AbstractController
         $xml = new \DOMDocument();
         $xml->load($this->xmlFilePath);
 
-        $xpath = new \DOMXPath($xml);
-
-        // VULNERABLE: Direct XPath injection — trackingId is not sanitized
-        $query = "//shipment[@trackingId='$trackingId']";
-        $results = $xpath->query($query);
-
-        if ($results === false || $results->length === 0) {
+        $shipmentNode = $this->findShipmentNode($xml, $trackingId);
+        if ($shipmentNode === null) {
             return $this->json(['error' => 'No tracking history found for the given tracking ID'], 404);
         }
-
-        $shipmentNode = $results->item(0);
 
         $events = [];
         foreach ($shipmentNode->getElementsByTagName('event') as $eventNode) {
@@ -247,67 +281,37 @@ class TrackingReportController extends AbstractController
     }
 
     /**
-     * Search tracking history by tracking ID fragment or origin/destination city.
+     * Stream a saved per-shipment tracking report from disk.
      *
-     * VULNERABLE: The search term is interpolated directly into the XPath query.
+     * VULNERABLE: $file is concatenated directly to the base path. No
+     * realpath() check, no basename() stripping, no allowlist. An attacker
+     * can supply ../ segments to read arbitrary files on the filesystem.
+     *
+     * Example payload: ?file=../../../../etc/passwd
      */
-    #[Route('/tracking-report/search', name: 'tracking_report_search', methods: ['GET'], priority: 10)]
-    public function searchTrackingHistory(Request $request): JsonResponse
+    #[Route('/tracking-report/download', name: 'tracking_report_download', methods: ['GET'])]
+    public function downloadReport(Request $request): Response
     {
-        $term = $request->query->get('q', '');
-
-        if (empty($term)) {
-            return $this->json(['error' => 'Search term is required'], 400);
+        $file = $request->query->get('file', '');
+        if ($file === '') {
+            return $this->json(['error' => 'file query parameter is required'], 400);
         }
 
-        try {
-            $xml = new \DOMDocument();
-            $xml->load($this->xmlFilePath);
+        $path = $this->exportsDir . '/' . $file;
 
-            $xpath = new \DOMXPath($xml);
-
-            // VULNERABLE: Direct XPath injection — $term concatenated without sanitization
-            $termLower = strtolower($term);
-            $query = "//shipment[" .
-                "contains(translate(@trackingId,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'$termLower') or " .
-                "contains(translate(origin,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'$termLower') or " .
-                "contains(translate(destination,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'$termLower') or " .
-                "contains(translate(cat,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'$termLower')" .
-            "]";
-
-            $results = $xpath->query($query);
-
-            $shipments = [];
-            foreach ($results as $shipmentNode) {
-                $shipments[] = [
-                    'tracking_id'    => $shipmentNode->getAttribute('trackingId'),
-                    'cat'            => $shipmentNode->getElementsByTagName('cat')->item(0)->textContent,
-                    'origin'         => $shipmentNode->getElementsByTagName('origin')->item(0)->textContent,
-                    'destination'    => $shipmentNode->getElementsByTagName('destination')->item(0)->textContent,
-                    'current_status' => $shipmentNode->getElementsByTagName('currentStatus')->item(0)->textContent,
-                    'event_count'    => $shipmentNode->getElementsByTagName('event')->length,
-                ];
-            }
-
-            return $this->json([
-                'search_term' => $term,
-                'query_used'  => $query,
-                'results'     => $shipments,
-                'count'       => count($shipments),
-            ]);
-
-        } catch (\Exception $e) {
-            return $this->json([
-                'error'           => 'Search failed',
-                'message'         => $e->getMessage(),
-                'query_attempted' => $query ?? 'unknown',
-            ], 500);
+        if (!file_exists($path)) {
+            return $this->json(['error' => 'Report not found'], 404);
         }
+
+        $contents = file_get_contents($path);
+
+        return new Response(
+            $contents,
+            200,
+            ['Content-Type' => 'text/plain; charset=utf-8']
+        );
     }
 
-    /**
-     * Append a new tracking event to an existing shipment record.
-     */
     #[Route('/tracking-report/events', name: 'tracking_report_add_event', methods: ['POST'])]
     public function addTrackingEvent(Request $request): JsonResponse
     {
@@ -326,14 +330,11 @@ class TrackingReportController extends AbstractController
         $xml->load($this->xmlFilePath);
         $xml->formatOutput = true;
 
-        $xpath = new \DOMXPath($xml);
-        $shipmentNodes = $xpath->query("//shipment[@trackingId='" . htmlspecialchars($trackingId, ENT_XML1) . "']");
-
-        if ($shipmentNodes->length === 0) {
+        $shipmentNode = $this->findShipmentNode($xml, $trackingId);
+        if ($shipmentNode === null) {
             return $this->json(['error' => 'Shipment not found'], 404);
         }
 
-        $shipmentNode = $shipmentNodes->item(0);
         $eventsNode = $shipmentNode->getElementsByTagName('events')->item(0);
         if (!$eventsNode) {
             $eventsNode = $xml->createElement('events');
@@ -346,7 +347,6 @@ class TrackingReportController extends AbstractController
         $event->setAttribute('type', htmlspecialchars($type));
         $eventsNode->appendChild($event);
 
-        // Update currentStatus if type is delivery
         if ($type === 'delivery') {
             $statusNode = $shipmentNode->getElementsByTagName('currentStatus')->item(0);
             if ($statusNode) {
