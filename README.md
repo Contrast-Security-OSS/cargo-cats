@@ -104,7 +104,7 @@ The core application consists of nine intentionally vulnerable microservices:
 - **Docservice** (Python/Flask) - DOCX document processor
 - **Reportservice** (Java/Tomcat) - Shipping report template engine with shadow AI: the OpenAI Java SDK is embedded directly inside the report rendering servlet, silently enriching reports with a logistics insight via Ollama. There is no AI-branded endpoint, Contrast detects the AI SDK usage from inside what appears to be a pure report rendering service.
 - **AiService** (Java/Spring Boot) - Dedicated AI service for the "Shipping Advisor" chatbot. Uses the OpenAI Java SDK pointed at a local Ollama instance, representing explicit/declared AI usage.
-- **Trackingreportservice** (PHP/Symfony) - Generates and serves persisted tracking reports. Path Traversal in the report download endpoint (Assess + Protect) and XPath Injection in the search endpoint (Assess only, no Protect rule for XPath).
+- **Trackingreportservice** (PHP/Symfony) - Generates and serves persisted tracking reports.
 
 ### Simulation and Monitoring Tools
 
@@ -131,7 +131,7 @@ This documentation covers:
 - Path Traversal (.NET imageservice and PHP trackingreportservice)
 - XML External Entity (XXE) Injection
 - Server-Side Template Injection (SSTI) / RCE (CVE-2025-64087)
-- XPath Injection (PHP trackingreportservice, Assess-only)
+- XPath Injection
 - Server-Side JavaScript Injection (SSJS)
 - Untrusted Deserialization
 - Weak Password Storage (MD5 Hashing)
