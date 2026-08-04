@@ -83,12 +83,24 @@ fluent-bit:
           Suppress_Type_Name On
 
 falco:
-  # Falco is disabled for Docker Desktop compatibility
-  # Docker Desktop uses LinuxKit kernel which lacks:
-  # - Kernel headers needed to compile eBPF probes
-  # - Prebuilt drivers for the specific kernel version
-  # Enable this when deploying to cloud environments (EKS, AKS, GKE) or VMs
-  enabled: false
+  # Falco runs by default. It works on Docker Desktop through the modern eBPF
+  # (CO-RE) driver, which needs kernel BTF (/sys/kernel/btf/vmlinux) rather than
+  # kernel headers, so nothing is compiled on the node. Current Docker Desktop
+  # kernels ship BTF, so the probe loads directly.
+  #
+  # The `condition: falco.enabled` on the dependency in Chart.yaml makes this a
+  # real toggle. Set enabled: false only for an environment whose kernel lacks
+  # BTF and cannot load the modern probe.
+  enabled: true
+  driver:
+    kind: modern_ebpf
+  # Falco's own falco.yaml settings live under this nested `falco:` key (the
+  # subchart's key). JSON output is required: fluent-bit parses each alert's
+  # JSON into fields (priority, rule, output_fields.*) that get indexed into
+  # OpenSearch, and the WAF/EDR/ADR dashboards filter on exactly those fields.
+  # With plain-text output the fields are absent and the Falco panels are empty.
+  falco:
+    json_output: true
 
 ingress-nginx:
   controller:
