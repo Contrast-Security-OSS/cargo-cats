@@ -1,4 +1,4 @@
-FROM maven:3.9-eclipse-temurin-17 AS builder
+FROM maven:3.9-eclipse-temurin-17@sha256:4015718012bbf1113ec6cfae2b950be328d90265ceb60f92b26c3ea7c4d14ee8 AS builder
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY src ./src
 RUN mvn package -DskipTests
 
 # Runtime stage
-FROM tomcat:9.0-jdk17
+FROM tomcat:9.0-jdk17@sha256:9b52503f863da58146f489862f55b3cdb31297e33a104a61e1edf5bc0e82b148
 
 # Remove default Tomcat applications
 RUN rm -rf /usr/local/tomcat/webapps/*
