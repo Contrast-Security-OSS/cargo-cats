@@ -32,6 +32,17 @@ spec:
       labels:
         app: opensearch-node
     spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+      # The hostpath provisioner does not reliably apply fsGroup ownership, so make
+      # the persistent data dir writable by the opensearch user (uid 1000).
+      - name: fix-data-permissions
+        image: busybox:1.36
+        command: ["sh", "-c", "chown -R 1000:1000 /usr/share/opensearch/data"]
+        volumeMounts:
+        - name: opensearch-data
+          mountPath: /usr/share/opensearch/data
       containers:
       - image: opensearchproject/opensearch:latest
         name: opensearch-node
@@ -59,6 +70,8 @@ spec:
         volumeMounts:
         - name: opensearch-tmp
           mountPath: /tmp
+        - name: opensearch-data
+          mountPath: /usr/share/opensearch/data
         resources:
           requests:
             memory: "1Gi"
@@ -72,3 +85,17 @@ spec:
       - name: opensearch-tmp
         emptyDir:
           sizeLimit: "5Gi"
+      - name: opensearch-data
+        persistentVolumeClaim:
+          claimName: opensearch-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: opensearch-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.opensearch.dataSize | default "10Gi" }}

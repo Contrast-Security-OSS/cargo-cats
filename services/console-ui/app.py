@@ -737,141 +737,146 @@ def traffic_clear():
 
 @app.route('/delete/all', methods=['POST'])
 def delete_all():
-    """Delete all incidents and issues for applications starting with the contrast unique name"""
+    """Delete all attack incidents and assess issues for this demo's applications.
+
+    Scoped strictly to the applications named "<uniq>-cargocats-*" (resolved to their
+    app IDs), so it is safe in a shared Contrast org. SCA library CVEs live on a separate
+    API and are never touched.
+
+    Notes learned from the live API:
+      * The ns-ui issues/incidents list endpoints are POST (GET returns 405) and IGNORE the
+        applicationName body filter, so results are filtered client-side by application ID.
+      * Assess issues that are children of an attack incident return 403 on direct DELETE;
+        deleting the parent incident cascades and removes them, so incidents are deleted first.
+    """
     try:
         logger.info("Delete all incidents/issues requested")
-        
-        # Check if we have the required credentials and configuration
+
         if not contrast_api_key or not contrast_api_authorization or not contrast_org_id or not contrast_base_url:
             logger.error("Missing Contrast API credentials or configuration")
             return jsonify({
-                "status": "error", 
+                "status": "error",
                 "message": "Missing Contrast API credentials or configuration"
             }), 500
-        
-        # Get the contrast unique name from environment
+
         contrast_uniq_name = os.getenv('CONTRAST__UNIQ__NAME', '')
         if not contrast_uniq_name:
             logger.error("CONTRAST__UNIQ__NAME environment variable not found")
             return jsonify({
-                "status": "error", 
+                "status": "error",
                 "message": "Contrast unique name not configured"
             }), 500
-        
-        logger.info(f"Filtering applications by unique name: {contrast_uniq_name}")
-        
-        # Filter by unique name plus "-cargocats" suffix
+
         filter_name = f"{contrast_uniq_name}-cargocats"
         logger.info(f"Using filter name: {filter_name}")
-        
-        applications_url = f"{contrast_base_url}/Contrast/api/ng/{contrast_org_id}/applications/filter?includeMerged=true"
+
         headers = {
             'Authorization': contrast_api_authorization,
             'API-Key': contrast_api_key,
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         }
-        
-        request_body = {
-            "filterText": filter_name,
-        }
-        
-        response = requests.post(applications_url, headers=headers, json=request_body, timeout=30)
-        
-        if response.status_code != 200:
-            logger.error(f"Failed to fetch applications: {response.status_code} - {response.text}")
+        ns_base = f"{contrast_base_url}/api/ns-ui/v1/organizations/{contrast_org_id}"
+
+        # 1. Resolve this demo's application IDs (name filter is reliable for scoping).
+        applications_url = f"{contrast_base_url}/Contrast/api/ng/{contrast_org_id}/applications/filter?includeMerged=true"
+        apps_resp = requests.post(applications_url, headers=headers, json={"filterText": filter_name}, timeout=30)
+        if apps_resp.status_code != 200:
+            logger.error(f"Failed to fetch applications: {apps_resp.status_code} - {apps_resp.text}")
             return jsonify({
-                "status": "error", 
-                "message": f"Failed to fetch applications: API returned status {response.status_code}"
-            }), response.status_code
-        
-        applications_data = response.json()
-        applications = applications_data.get('applications', []) if isinstance(applications_data, dict) else applications_data
-        
-        if not applications:
+                "status": "error",
+                "message": f"Failed to fetch applications: API returned status {apps_resp.status_code}"
+            }), apps_resp.status_code
+
+        apps_json = apps_resp.json()
+        applications = apps_json.get('applications', []) if isinstance(apps_json, dict) else apps_json
+        app_ids = {a.get('app_id') for a in applications if a.get('app_id')}
+        if not app_ids:
             logger.info("No applications found matching the unique name filter")
             return jsonify({
-                "status": "success", 
+                "status": "success",
                 "message": f"No applications found starting with '{filter_name}'"
             }), 200
-        
-        app_ids = [app.get('app_id', 'Unknown') for app in applications]
-        
-        deletion_results = []
-        headers = {
-            'Authorization': contrast_api_authorization,
-            'API-Key': contrast_api_key,
-            'Content-Type': 'application/json'
-        }
-        
-        for app_id in app_ids:
-            if app_id == 'Unknown':
-                logger.warning("Skipping application with unknown app_id")
-                deletion_results.append({
-                    "app_id": app_id,
-                    "status": "skipped",
-                    "message": "Unknown app_id"
-                })
-                continue
-            
-            issues_url = f"{contrast_base_url}/api/ns-ui/v1/organizations/{contrast_org_id}/issues"
-            
-            try:
-                issues_response = requests.delete(
-                    issues_url, 
-                    headers=headers, 
-                    params={"applicationId": app_id},
-                    timeout=30
-                )
-                
-                if issues_response.status_code in [200, 202, 204]:
-                    deletion_results.append({
-                        "app_id": app_id,
-                        "status": "success",
-                        "message": "Issues deleted successfully"
-                    })
-                elif issues_response.status_code == 404:
-                    deletion_results.append({
-                        "app_id": app_id,
-                        "status": "success",
-                        "message": "No issues found to delete"
-                    })
-                else:
-                    logger.error(f"Failed to delete issues for application {app_id}: {issues_response.status_code}")
-                    deletion_results.append({
-                        "app_id": app_id,
-                        "status": "error",
-                        "message": f"Failed to delete issues: API returned status {issues_response.status_code}"
-                    })
-                    
-            except Exception as e:
-                logger.error(f"Error while deleting issues for application {app_id}: {str(e)}")
-                deletion_results.append({
-                    "app_id": app_id,
-                    "status": "error",
-                    "message": f"Error: {str(e)}"
-                })
-        
-        successful_deletions = len([r for r in deletion_results if r["status"] == "success"])
-        failed_deletions = len([r for r in deletion_results if r["status"] == "error"])
-        
+
+        def _list_all(endpoint, key):
+            """Page through a ns-ui POST list endpoint and return all items."""
+            items, page = [], 0
+            while True:
+                resp = requests.post(f"{ns_base}/{endpoint}", headers=headers,
+                                     params={'page': page, 'size': 100}, json={}, timeout=30)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"{endpoint} list returned {resp.status_code}: {resp.text[:200]}")
+                batch = (resp.json() or {}).get(key, [])
+                items.extend(batch)
+                if len(batch) < 100:
+                    return items
+                page += 1
+
+        def _delete_with_retry(url, attempts=4, backoff=1.5):
+            """DELETE that tolerates the transient 500s the ns-ui API returns mid-delete;
+            returns True once the object is gone (2xx or 404 on any attempt)."""
+            last = None
+            for n in range(attempts):
+                try:
+                    r = requests.delete(url, headers=headers, timeout=30)
+                    if r.status_code in (200, 202, 204, 404):
+                        return True
+                    last = r.status_code
+                except Exception as e:
+                    last = str(e)
+                if n < attempts - 1:
+                    time.sleep(backoff)
+            logger.warning(f"DELETE {url} not confirmed after {attempts} attempts (last={last})")
+            return False
+
+        # 2. Issues that belong to our applications.
+        our_issues = [i for i in _list_all('issues', 'issues') if i.get('applicationId') in app_ids]
+        linked_by_incident = {}
+        standalone_issues = []
+        for issue in our_issues:
+            inc_id = issue.get('incidentId')
+            if inc_id:
+                linked_by_incident.setdefault(inc_id, []).append(issue)
+            else:
+                standalone_issues.append(issue)
+
+        # 3. Delete the attack incidents that own our issues (this cascades the child issues).
+        incidents_deleted = incidents_failed = cascaded_issues = 0
+        for inc_id in linked_by_incident:
+            if _delete_with_retry(f"{ns_base}/incidents/{inc_id}"):
+                incidents_deleted += 1
+                cascaded_issues += len(linked_by_incident[inc_id])
+            else:
+                incidents_failed += 1
+
+        # 4. Delete the remaining standalone assess issues directly.
+        issues_deleted = issues_failed = 0
+        for issue in standalone_issues:
+            if _delete_with_retry(f"{ns_base}/issues/{issue.get('issueId')}"):
+                issues_deleted += 1
+            else:
+                issues_failed += 1
+
+        total_issues_removed = cascaded_issues + issues_deleted
+        msg = (f"Cleared {incidents_deleted} incident(s) and {total_issues_removed} issue(s) "
+               f"across {len(app_ids)} application(s). CVEs/libraries were not touched.")
+        logger.info(msg + f" (incident_failures={incidents_failed}, issue_failures={issues_failed})")
         return jsonify({
-            "status": "success", 
-            "message": f"Processed {len(applications)} applications: {successful_deletions} successful deletions, {failed_deletions} failed",
-            "application_ids": app_ids,
-            "count": len(applications),
-            "deletion_results": deletion_results,
+            "status": "success",
+            "message": msg,
             "summary": {
-                "successful": successful_deletions,
-                "failed": failed_deletions,
-                "total": len(deletion_results)
+                "applications": len(app_ids),
+                "incidents_deleted": incidents_deleted,
+                "incidents_failed": incidents_failed,
+                "issues_removed": total_issues_removed,
+                "issues_failed": issues_failed
             }
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error in delete all operation: {str(e)}")
         return jsonify({
-            "status": "error", 
+            "status": "error",
             "message": f"Failed to delete all incidents/issues: {str(e)}"
         }), 500
 
