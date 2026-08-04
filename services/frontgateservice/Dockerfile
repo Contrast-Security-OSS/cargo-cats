@@ -19,5 +19,4 @@ COPY --from=builder /app/target/frontgateservice-0.0.1-SNAPSHOT.jar app.jar
 # Expose the port
 EXPOSE 8081
 
-# Run the application with unsafe serialization enabled for log4shell demo
-ENTRYPOINT ["java", "-Dorg.apache.commons.collections.enableUnsafeSerialization=true", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Dcom.sun.jndi.ldap.object.trustSerialData=true", "-jar", "app.jar"]

