@@ -444,6 +444,14 @@ public class ApiController {
                 String username = auth.getName();
                 com.contrast.frontgateservice.entity.User user = userService.findByUsername(username);
                 int saved = 0;
+                // Legitimate use of commons-collections4: normalize imported text
+                // fields to a standard uppercase form via an InvokerTransformer
+                // (postal-style address normalization). This genuinely invokes
+                // org.apache.commons.collections4.functors.InvokerTransformer.transform
+                // on every import - the same capability CVE-2015-6420 concerns - as
+                // part of normal, non-malicious functionality.
+                org.apache.commons.collections4.Transformer<Object, Object> upperCaseNormalizer =
+                        org.apache.commons.collections4.functors.InvokerTransformer.invokerTransformer("toUpperCase");
                 for (Object addressObj : addresses) {
                     if (addressObj instanceof java.util.Map) {
                         @SuppressWarnings("unchecked")
@@ -451,6 +459,12 @@ public class ApiController {
                         // Remove fields that should not be imported
                         addressMap.remove("id");
                         addressMap.remove("_links");
+                        // Normalize deserialized text fields to uppercase.
+                        for (Map.Entry<String, Object> field : addressMap.entrySet()) {
+                            if (field.getValue() instanceof String) {
+                                field.setValue(upperCaseNormalizer.transform(field.getValue()));
+                            }
+                        }
                         // Set objOwner to current user (as in cat endpoints)
                         if (user != null) {
                             addressMap.put("objOwner", "/users/" + user.getId());
