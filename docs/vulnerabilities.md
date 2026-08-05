@@ -520,6 +520,9 @@ The address import functionality in the frontgateservice accepts serialized Java
 - Potential privilege escalation depending on application permissions
 - Persistence via backdoors or added user accounts
 
+**Runtime Library-CVE Exposure (Normal Usage):**
+Beyond the crafted-payload exploit above, the import feature legitimately normalizes address fields by invoking Apache Commons Collections `InvokerTransformer.transform` (it uppercases text values). Ordinary imports therefore execute the vulnerable library method at runtime, so runtime protection such as Contrast CVE Shield reports the Commons Collections deserialization CVE (CVE-2015-6420) as observed behavior with no attack involved, distinct from the arbitrary code execution triggered by a malicious `payload.ser`.
+
 ---
 
 ## 🛡️ Additional Security Issues

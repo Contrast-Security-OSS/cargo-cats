@@ -18,6 +18,8 @@ spec:
         agent:
           logger:
             level: INFO
+        shield:
+          enable: true
         server:
           # Valid values include QA, PRODUCTION and DEVELOPMENT
           environment: QA
