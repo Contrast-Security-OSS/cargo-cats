@@ -151,7 +151,7 @@ ai:
 Before you can deploy Cargo Cats, ensure you have the following installed:
 
 1. **Docker Desktop** (recommended) with Kubernetes enabled
-   - Install Docker Desktop
+   - Install Docker Desktop for your OS: [Windows](https://docs.docker.com/desktop/setup/install/windows-install/), [macOS](https://docs.docker.com/desktop/setup/install/mac-install/), or [Linux](https://docs.docker.com/desktop/setup/install/linux/)
    - **Important**: Go to Settings → Resources and allocate at least **12 GB of memory** (14 GB recommended). The default 8 GB is not sufficient.
    - Go to Settings → Kubernetes → Enable Kubernetes
    - **Important**: Cargo Cats requires the **kubeadm** Kubernetes provider. Recent versions of Docker Desktop changed the default provider to **kind**, which is not supported.
