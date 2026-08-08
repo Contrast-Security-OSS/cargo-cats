@@ -27,6 +27,7 @@ flowchart TB
                 DC["<b>docservice</b><br/>Python<br/>━━━━━━<br/><font color='#c00'>⚠️ XXE</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 RS["<b>reportservice</b><br/>Java<br/>━━━━━━<br/><font color='#c00'>⚠️ SSTI</font> · <font color='#555'>🤖 shadow AI</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 AS["<b>aiservice</b><br/>Java<br/>━━━━━━<br/><font color='#555'>🤖 AI SDK demo</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
+                TR["<b>trackingreportservice</b><br/>PHP<br/>━━━━━━<br/><font color='#c00'>⚠️ Path Traversal · XPath Injection</font><br/>━━━━━━<br/>🛡️ <font color='#093'>Contrast</font> | <font color='#0066cc'>Falco</font>"]
                 OL[("</b>ollama</b><br/>local LLM")]
                 DB[("<b>MySQL</b><br/>db + credit_cards")]
             end
@@ -62,6 +63,7 @@ flowchart TB
     FG --> DC
     FG --> RS
     FG --> AS
+    FG --> TR
     AS --> OL
     RS --> OL
     DS --> DB
@@ -75,7 +77,7 @@ flowchart TB
     classDef vuln fill:#e8e8e8,stroke:#888,color:#000
     classDef sim  fill:#e6f3ff,stroke:#06c,color:#000
     classDef supp fill:#fff4d4,stroke:#c80,color:#000
-    class FG,DS,WH,IS,LS,DC,RS,AS,OL,DB,Ingress vuln
+    class FG,DS,WH,IS,LS,DC,RS,AS,TR,OL,DB,Ingress vuln
     class CU,ZAP sim
     class EX,CDC,OSN,OSD supp
 ```
@@ -92,7 +94,7 @@ flowchart TB
 
 ### Vulnerable Application Services
 
-The core application consists of eight intentionally vulnerable microservices:
+The core application consists of nine intentionally vulnerable microservices:
 
 - **Frontgateservice** (Java/Spring Boot) - Web frontend, authentication, and API gateway to other services
 - **Dataservice** (Java/Spring Boot) - Handles data operations and payment processing
@@ -100,8 +102,9 @@ The core application consists of eight intentionally vulnerable microservices:
 - **Imageservice** (C#/.NET) - Manages photo uploads and file operations
 - **Labelservice** (Node.js) - Generates shipping labels and handles address processing
 - **Docservice** (Python/Flask) - DOCX document processor
-- **Reportservice** (Java/Tomcat) - Shipping report template engine with shadow AI: the OpenAI Java SDK is embedded directly inside the report rendering servlet, silently enriching reports with a logistics insight via Ollama. There is no AI-branded endpoint — Contrast detects the AI SDK usage from inside what appears to be a pure report rendering service.
+- **Reportservice** (Java/Tomcat) - Shipping report template engine with shadow AI: the OpenAI Java SDK is embedded directly inside the report rendering servlet, silently enriching reports with a logistics insight via Ollama. There is no AI-branded endpoint, Contrast detects the AI SDK usage from inside what appears to be a pure report rendering service.
 - **AiService** (Java/Spring Boot) - Dedicated AI service for the "Shipping Advisor" chatbot. Uses the OpenAI Java SDK pointed at a local Ollama instance, representing explicit/declared AI usage.
+- **Trackingreportservice** (PHP/Symfony) - Generates and serves persisted tracking reports.
 
 ### Simulation and Monitoring Tools
 
@@ -125,9 +128,10 @@ This documentation covers:
 - Log4Shell (CVE-2021-44228)
 - Server-Side Request Forgery (SSRF)
 - Command Injection
-- Path Traversal
+- Path Traversal (.NET imageservice and PHP trackingreportservice)
 - XML External Entity (XXE) Injection
 - Server-Side Template Injection (SSTI) / RCE (CVE-2025-64087)
+- XPath Injection (PHP trackingreportservice, Assess-only)
 - Server-Side JavaScript Injection (SSJS)
 - Untrusted Deserialization
 - Weak Password Storage (MD5 Hashing)

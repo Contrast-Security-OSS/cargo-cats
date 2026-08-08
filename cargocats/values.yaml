@@ -49,6 +49,10 @@ ai:
   # Set to false to disable the shadow AI insight injection in reportservice
   shadowEnabled: true
 
+trackingreportservice:
+  image: trackingreportservice:latest
+  name: trackingreportservice
+
 opensearch:
   initialAdminPassword: "Contrast@123!"
 
