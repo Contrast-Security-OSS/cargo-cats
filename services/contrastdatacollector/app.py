@@ -103,7 +103,8 @@ def parse_contrast_token(token: str) -> Optional[Dict[str, str]]:
             return None
             
     except Exception as e:
-        logger.error(f"Error parsing token: {e}")
+        # Log only the exception type, the message can echo the decoded token contents
+        logger.error(f"Error parsing token: {type(e).__name__}")
         return None
 
 class ContrastDataCollector:
@@ -153,12 +154,7 @@ class ContrastDataCollector:
             'size': 100,
             'sort': ['status,desc', 'cvssScore,desc', 'updatedDt,desc']
         }
-        
-        # Request body for POST requests
-        self.request_body = {
-            'applicationName': self.application_name
-        }
-        
+
         # Setup session with headers
         self.session = requests.Session()
         
@@ -172,7 +168,7 @@ class ContrastDataCollector:
         if not api_authorization:
             raise ValueError("CONTRAST__API__AUTHORIZATION environment variable is required")
         
-        logger.info(f"Loaded CONTRAST__API__KEY: {api_key}")
+        logger.info(f"Loaded CONTRAST__API__KEY: {'***' if api_key else None}")
         logger.info(f"Loaded CONTRAST__API__AUTHORIZATION: {'***' if api_authorization else None}")
         
         # Setup headers with API authentication only
@@ -185,9 +181,53 @@ class ContrastDataCollector:
         }
         
         self.session.headers.update(headers)
-        
-        logger.info(f"Contrast Data Collector initialized for application: {self.application_name}, org: {self.org_id}, base_url: {self.base_url}")
-    
+
+        # Look up the application IDs in TeamServer for the configured application prefix
+        self.application_ids = self._lookup_application_ids()
+
+        # Request body for POST requests
+        self.request_body = {
+            'applicationIds': self.application_ids
+        }
+
+        logger.info(f"Contrast Data Collector initialized for applications: {self.application_name} ({self.application_ids}), org: {self.org_id}, base_url: {self.base_url}")
+
+    def _lookup_application_ids(self) -> list[str]:
+        """Look up the TeamServer application IDs for self.application_name via the applications filter/info API"""
+        applications_url = f"{self.base_url}/Contrast/api/ng/{self.org_id}/applications/filter/info"
+        try:
+            response = self.session.get(
+                applications_url,
+                params={'filterText': self.application_name, 'limit': 25},
+                timeout=30
+            )
+            response.raise_for_status()
+
+            application_ids = [app.get('app_id') for app in response.json().get('applications', [])]
+            return [app_id for app_id in application_ids if app_id]
+
+        except Exception as e:
+            logger.error(f"Error looking up application IDs for '{self.application_name}': {e}")
+            return []
+
+    def _ensure_application_ids(self) -> bool:
+        """Resolve application IDs if an earlier lookup failed, returning False if none are available
+
+        An empty applicationIds list is treated by the API as no filter at all, so
+        collection must be skipped rather than querying the whole organization.
+        """
+        if self.application_ids:
+            return True
+
+        self.application_ids = self._lookup_application_ids()
+        if not self.application_ids:
+            logger.error(f"No application IDs for '{self.application_name}', skipping collection rather than querying the whole organization")
+            return False
+
+        self.request_body['applicationIds'] = self.application_ids
+        logger.info(f"Resolved application IDs for '{self.application_name}': {self.application_ids}")
+        return True
+
     def is_issues_paused(self) -> bool:
         """Check if issues collection is currently paused"""
         if self.issues_paused_until is None:
@@ -421,13 +461,15 @@ class ContrastDataCollector:
     def collect_all_data(self):
         """Collect all data from APIs"""
         logger.info("Starting data collection cycle")
-        
-        # Collect issues
-        issues_success = self.collect_issues()
-        
-        # Collect incidents
-        incidents_success = self.collect_incidents()
-        
+
+        # Resolve the application filter once per cycle before collecting anything
+        if self._ensure_application_ids():
+            issues_success = self.collect_issues()
+            incidents_success = self.collect_incidents()
+        else:
+            issues_success = False
+            incidents_success = False
+
         # Log collection summary
         summary = {
             'timestamp': datetime.now(timezone.utc).isoformat(),
