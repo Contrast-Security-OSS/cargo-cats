@@ -1,4 +1,4 @@
-FROM maven:3.9-eclipse-temurin-11 AS builder
+FROM maven:3.9-eclipse-temurin-11@sha256:d7fde65edb74e27c01909e8b7287f5da9e49913643912c412894feef77d8ed26 AS builder
 
 WORKDIR /app
 
@@ -6,7 +6,7 @@ COPY . .
 
 RUN --mount=type=cache,target=/root/.m2 mvn clean package -Dmaven.test.skip=true
 
-FROM eclipse-temurin:11-jre-jammy
+FROM eclipse-temurin:11-jre-jammy@sha256:eca8fa395077325c4065446e99e79af91c7283f10600d7f8c11530493e38a07c
 
 WORKDIR /app
 
