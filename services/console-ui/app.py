@@ -821,8 +821,11 @@ def delete_all():
     Notes learned from the live API:
       * The ns-ui issues/incidents list endpoints are POST (GET returns 405) and IGNORE the
         applicationName body filter, so results are filtered client-side by application ID.
-      * Assess issues that are children of an attack incident return 403 on direct DELETE;
-        deleting the parent incident cascades and removes them, so incidents are deleted first.
+      * Assess issues that are children of an attack incident return 403 on direct DELETE,
+        so the parent incident is deleted first to unlink them.
+      * Deleting an incident does NOT delete its children. It unlinks them, leaving each
+        one in place with incidentId=None. Every child still needs its own DELETE, and a
+        run that assumes otherwise reports issues as removed while they are still there.
     """
     try:
         logger.info("Delete all incidents/issues requested")
@@ -965,57 +968,79 @@ def delete_all():
             f"to consider, {len(standalone_issues)} standalone issue(s) to delete directly."
         )
 
-        # 3. Delete the attack incidents that own our issues. An incident that also owns
-        #    issues belonging to applications outside this demo is left alone, because the
-        #    cascade would destroy another tenant's data in a shared org. Its demo-owned
-        #    children fall through to step 4 and are deleted individually instead.
-        incidents_deleted = incidents_failed = cascaded_issues = 0
-        incidents_skipped_shared = 0
+        # 3. Delete the attack incidents that own our issues.
+        #
+        #    Deleting an incident does NOT delete its child issues. It only unlinks them,
+        #    leaving each child in place with incidentId=None and incidentCount=0. That
+        #    matters because a child issue still attached to an incident returns 403 on
+        #    direct DELETE, so removing the incident is what makes the children deletable,
+        #    and every child then still has to be deleted individually in step 4.
+        #
+        #    An incident that also owns issues belonging to applications outside this demo
+        #    is left alone, because in a shared org removing it would unlink and expose
+        #    another tenant's findings. Its demo-owned children stay linked and therefore
+        #    cannot be deleted, so they are reported as skipped rather than retried to
+        #    failure.
+        incidents_deleted = incidents_failed = incidents_skipped_shared = 0
+        deletable_issues = list(standalone_issues)
+        blocked_issues = 0
         for inc_id, our_children in linked_by_incident.items():
             all_children = children_by_incident.get(inc_id, our_children)
             if not all(c.get('applicationId') in app_ids for c in all_children):
                 incidents_skipped_shared += 1
+                blocked_issues += len(our_children)
                 logger.warning(
                     f"Incident {inc_id} also owns issues outside this demo's applications; "
-                    "skipping the incident and deleting only our own child issues."
+                    "leaving it and its children in place."
                 )
-                standalone_issues.extend(our_children)
                 continue
             if _delete_with_retry(f"{ns_base}/incidents/{inc_id}"):
                 incidents_deleted += 1
-                cascaded_issues += len(our_children)
+                deletable_issues.extend(our_children)
             else:
                 incidents_failed += 1
+                blocked_issues += len(our_children)
 
-        # 4. Delete the remaining assess issues directly (standalone ones, plus the
-        #    demo-owned children of any shared incident we declined to cascade).
+        # 4. Delete our issues individually, including the children just unlinked by the
+        #    incident deletions above. Nothing is counted as removed unless its own DELETE
+        #    was confirmed.
         issues_deleted = issues_failed = 0
-        for issue in standalone_issues:
+        for issue in deletable_issues:
             if _delete_with_retry(f"{ns_base}/issues/{issue.get('issueId')}"):
                 issues_deleted += 1
             else:
                 issues_failed += 1
 
-        total_issues_removed = cascaded_issues + issues_deleted
+        # 5. Re-list and report what is actually left, rather than trusting the counters.
+        #    A cascade that silently did nothing is exactly how this went unnoticed before.
+        remaining = [i for i in _list_all('issues', 'issues')
+                     if i.get('applicationId') in app_ids]
         failures = incidents_failed + issues_failed
-        msg = (f"Cleared {incidents_deleted} incident(s) and {total_issues_removed} issue(s) "
+        msg = (f"Cleared {incidents_deleted} incident(s) and {issues_deleted} issue(s) "
                f"across {len(app_ids)} application(s). CVEs/libraries were not touched.")
         if incidents_skipped_shared:
-            msg += (f" Left {incidents_skipped_shared} incident(s) in place because they are "
-                    "shared with applications outside this demo.")
+            msg += (f" Left {incidents_skipped_shared} incident(s) and {blocked_issues} "
+                    "linked issue(s) in place because they are shared with applications "
+                    "outside this demo.")
         if failures:
             msg += f" {failures} object(s) could not be confirmed deleted, see console-ui logs."
-        logger.info(msg + f" (incident_failures={incidents_failed}, issue_failures={issues_failed})")
+        if remaining:
+            msg += f" {len(remaining)} issue(s) still present after the run."
+        logger.info(msg + f" (incident_failures={incidents_failed}, "
+                          f"issue_failures={issues_failed}, remaining={len(remaining)})")
+        unclean = failures or (len(remaining) > blocked_issues)
         return jsonify({
-            "status": "warning" if failures else "success",
+            "status": "warning" if unclean else "success",
             "message": msg,
             "summary": {
                 "applications": len(app_ids),
                 "incidents_deleted": incidents_deleted,
                 "incidents_failed": incidents_failed,
                 "incidents_skipped_shared": incidents_skipped_shared,
-                "issues_removed": total_issues_removed,
-                "issues_failed": issues_failed
+                "issues_removed": issues_deleted,
+                "issues_failed": issues_failed,
+                "issues_blocked_shared": blocked_issues,
+                "issues_remaining": len(remaining)
             }
         }), 200
 
