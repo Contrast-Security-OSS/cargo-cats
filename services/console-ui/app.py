@@ -874,18 +874,53 @@ def delete_all():
             }), 200
 
         def _list_all(endpoint, key):
-            """Page through a ns-ui POST list endpoint and return all items."""
-            items, page = [], 0
+            """Page through a ns-ui POST list endpoint and return all items.
+
+            These endpoints are cursor based, and two API quirks have to be respected
+            together or the caller silently gets wrong results.
+
+            The `page` parameter does not exist. Passing it is accepted and ignored, so
+            every request returns the same first records. The previous implementation
+            paged on `page` and stopped when a batch came back short, which meant that
+            as soon as the org held 100 or more issues it re-fetched the first page
+            forever, accumulating duplicates until it ran out of memory. It never
+            reached the delete step, so Delete All appeared to do nothing at all.
+
+            `size` is capped at 100, and on hitting the cap the API wrongly reports
+            hasMore=false with a null cursor. Asking for 100 therefore truncates the
+            result to the first 100 silently. Staying just under the cap keeps the
+            cursor and hasMore correct.
+            """
+            page_size = 99
+            items, seen, cursor, pages = [], set(), None, 0
             while True:
+                params = {'size': page_size}
+                if cursor:
+                    params['cursor'] = cursor
                 resp = requests.post(f"{ns_base}/{endpoint}", headers=headers,
-                                     params={'page': page, 'size': 100}, json={}, timeout=30)
+                                     params=params, json={}, timeout=30)
                 if resp.status_code != 200:
                     raise RuntimeError(f"{endpoint} list returned {resp.status_code}: {resp.text[:200]}")
-                batch = (resp.json() or {}).get(key, [])
-                items.extend(batch)
-                if len(batch) < 100:
+                body = resp.json() or {}
+                batch = body.get(key, [])
+                fresh = 0
+                for item in batch:
+                    ident = item.get('issueId') or item.get('incidentId')
+                    if ident is None or ident in seen:
+                        continue
+                    seen.add(ident)
+                    items.append(item)
+                    fresh += 1
+                cursor = body.get('cursor')
+                pages += 1
+                # Stop on the API's own signal, and independently if a page brought
+                # nothing new, so a future pagination change cannot spin forever.
+                if not body.get('hasMore') or not cursor or fresh == 0:
+                    logger.info(f"Listed {len(items)} {endpoint} over {pages} page(s)")
                     return items
-                page += 1
+                if pages >= 1000:
+                    raise RuntimeError(
+                        f"{endpoint} pagination exceeded {pages} pages, aborting")
 
         def _delete_with_retry(url, attempts=4, backoff=1.5):
             """DELETE that tolerates the transient 500s the ns-ui API returns mid-delete;
@@ -923,6 +958,12 @@ def delete_all():
                 linked_by_incident.setdefault(inc_id, []).append(issue)
             else:
                 standalone_issues.append(issue)
+
+        logger.info(
+            f"Scope resolved: {len(all_issues)} issue(s) in org, {len(our_issues)} ours "
+            f"across {len(app_ids)} application(s). {len(linked_by_incident)} incident(s) "
+            f"to consider, {len(standalone_issues)} standalone issue(s) to delete directly."
+        )
 
         # 3. Delete the attack incidents that own our issues. An incident that also owns
         #    issues belonging to applications outside this demo is left alone, because the
