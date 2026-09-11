@@ -83,15 +83,26 @@ fluent-bit:
           Suppress_Type_Name On
 
 falco:
-  # Falco runs by default. It works on Docker Desktop through the modern eBPF
-  # (CO-RE) driver, which needs kernel BTF (/sys/kernel/btf/vmlinux) rather than
-  # kernel headers, so nothing is compiled on the node. Current Docker Desktop
-  # kernels ship BTF, so the probe loads directly.
+  # Falco is disabled on Docker Desktop. Enable it on a cloud cluster (EKS, AKS,
+  # GKE) or a VM, where the modern eBPF probe loads normally.
   #
-  # The `condition: falco.enabled` on the dependency in Chart.yaml makes this a
-  # real toggle. Set enabled: false only for an environment whose kernel lacks
-  # BTF and cannot load the modern probe.
-  enabled: true
+  # Two separate failures were observed on Docker Desktop with kernel
+  # 7.0.12-linuxkit (aarch64) and Falco 0.41.0, in this order.
+  #
+  # 1. The falco container was OOMKilled (exit 137) on every start against the
+  #    subchart's default 1Gi limit, while loading the probe and doing its initial
+  #    proc scan. Raising the ceiling got past this but only revealed the next one.
+  # 2. With more memory the probe reaches the kernel BPF verifier and is rejected.
+  #    The sendmmsg_x program needs 1000001 instructions against the verifier's
+  #    1000000 limit, so libbpf fails the whole object with "Argument list too
+  #    long" and Falco exits with "Initialization issues during scap_init".
+  #
+  # Note that BTF is NOT the blocker. /sys/kernel/btf/vmlinux is present on this
+  # kernel, so a comment claiming modern eBPF works here because BTF exists is
+  # checking the wrong precondition. The verifier limit is the hard stop, and the
+  # other drivers cannot substitute, legacy `ebpf` wants kernel headers and `kmod`
+  # wants to compile a module, neither of which LinuxKit provides.
+  enabled: false
   driver:
     kind: modern_ebpf
   # Falco's own falco.yaml settings live under this nested `falco:` key (the
