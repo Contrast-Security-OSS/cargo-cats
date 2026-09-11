@@ -221,7 +221,7 @@ The reportservice starts before Ollama finishes pulling its model. Wait for Olla
 
 ```bash
 kubectl rollout status deployment/ollama
-kubectl rollout restart deployment/contrast-cargo-cats-reportservice
+kubectl rollout restart deployment/cargocats-reportservice
 ```
 
 ### Slow responses
