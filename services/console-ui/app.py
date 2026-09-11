@@ -904,8 +904,17 @@ def delete_all():
             logger.warning(f"DELETE {url} not confirmed after {attempts} attempts (last={last})")
             return False
 
-        # 2. Issues that belong to our applications.
-        our_issues = [i for i in _list_all('issues', 'issues') if i.get('applicationId') in app_ids]
+        # 2. Issues for our applications, plus a full incident -> children map. Deleting an
+        #    incident cascades to ALL of its children, so we need to know whether an incident
+        #    is exclusively ours before removing it.
+        all_issues = _list_all('issues', 'issues')
+        children_by_incident = {}
+        for issue in all_issues:
+            inc_id = issue.get('incidentId')
+            if inc_id:
+                children_by_incident.setdefault(inc_id, []).append(issue)
+
+        our_issues = [i for i in all_issues if i.get('applicationId') in app_ids]
         linked_by_incident = {}
         standalone_issues = []
         for issue in our_issues:
@@ -915,16 +924,30 @@ def delete_all():
             else:
                 standalone_issues.append(issue)
 
-        # 3. Delete the attack incidents that own our issues (this cascades the child issues).
+        # 3. Delete the attack incidents that own our issues. An incident that also owns
+        #    issues belonging to applications outside this demo is left alone, because the
+        #    cascade would destroy another tenant's data in a shared org. Its demo-owned
+        #    children fall through to step 4 and are deleted individually instead.
         incidents_deleted = incidents_failed = cascaded_issues = 0
-        for inc_id in linked_by_incident:
+        incidents_skipped_shared = 0
+        for inc_id, our_children in linked_by_incident.items():
+            all_children = children_by_incident.get(inc_id, our_children)
+            if not all(c.get('applicationId') in app_ids for c in all_children):
+                incidents_skipped_shared += 1
+                logger.warning(
+                    f"Incident {inc_id} also owns issues outside this demo's applications; "
+                    "skipping the incident and deleting only our own child issues."
+                )
+                standalone_issues.extend(our_children)
+                continue
             if _delete_with_retry(f"{ns_base}/incidents/{inc_id}"):
                 incidents_deleted += 1
-                cascaded_issues += len(linked_by_incident[inc_id])
+                cascaded_issues += len(our_children)
             else:
                 incidents_failed += 1
 
-        # 4. Delete the remaining standalone assess issues directly.
+        # 4. Delete the remaining assess issues directly (standalone ones, plus the
+        #    demo-owned children of any shared incident we declined to cascade).
         issues_deleted = issues_failed = 0
         for issue in standalone_issues:
             if _delete_with_retry(f"{ns_base}/issues/{issue.get('issueId')}"):
@@ -933,16 +956,23 @@ def delete_all():
                 issues_failed += 1
 
         total_issues_removed = cascaded_issues + issues_deleted
+        failures = incidents_failed + issues_failed
         msg = (f"Cleared {incidents_deleted} incident(s) and {total_issues_removed} issue(s) "
                f"across {len(app_ids)} application(s). CVEs/libraries were not touched.")
+        if incidents_skipped_shared:
+            msg += (f" Left {incidents_skipped_shared} incident(s) in place because they are "
+                    "shared with applications outside this demo.")
+        if failures:
+            msg += f" {failures} object(s) could not be confirmed deleted, see console-ui logs."
         logger.info(msg + f" (incident_failures={incidents_failed}, issue_failures={issues_failed})")
         return jsonify({
-            "status": "success",
+            "status": "warning" if failures else "success",
             "message": msg,
             "summary": {
                 "applications": len(app_ids),
                 "incidents_deleted": incidents_deleted,
                 "incidents_failed": incidents_failed,
+                "incidents_skipped_shared": incidents_skipped_shared,
                 "issues_removed": total_issues_removed,
                 "issues_failed": issues_failed
             }
