@@ -83,26 +83,29 @@ fluent-bit:
           Suppress_Type_Name On
 
 falco:
-  # Falco is disabled on Docker Desktop. Enable it on a cloud cluster (EKS, AKS,
-  # GKE) or a VM, where the modern eBPF probe loads normally.
+  # Falco runs by default via the modern eBPF (CO-RE) driver, which needs kernel
+  # BTF (/sys/kernel/btf/vmlinux) rather than kernel headers, so nothing is
+  # compiled on the node. Docker Desktop's LinuxKit kernel ships BTF, and it has
+  # neither kernel headers nor a prebuilt module, so modern_ebpf is the only
+  # driver that can work here. Do not switch `kind` to kmod or ebpf on Docker
+  # Desktop, both need to build something the node cannot build.
   #
-  # Two separate failures were observed on Docker Desktop with kernel
-  # 7.0.12-linuxkit (aarch64) and Falco 0.41.0, in this order.
+  # The subchart must stay at >= 9.x (appVersion >= 0.44.0). Falco <= 0.43
+  # cannot load the modern probe here at all: the BPF verifier rejects
+  # sendmmsg_x/recvmmsg_x for needing 1000001 instructions against its 1000000
+  # limit, libbpf then fails the whole bpf_probe object, and Falco exits with
+  # "Initialization issues during scap_init". On chart 5.0.0 (Falco 0.41.0) that
+  # presented as a permanent CrashLoopBackOff, and because the doomed probe load
+  # also blew through the 1Gi memory limit it surfaced first as an unexplained
+  # OOMKill (exit 137), which hides the real error. Fixed in libs 0.25.0, shipped
+  # in Falco 0.44.0. See https://github.com/falcosecurity/falco/issues/3829
   #
-  # 1. The falco container was OOMKilled (exit 137) on every start against the
-  #    subchart's default 1Gi limit, while loading the probe and doing its initial
-  #    proc scan. Raising the ceiling got past this but only revealed the next one.
-  # 2. With more memory the probe reaches the kernel BPF verifier and is rejected.
-  #    The sendmmsg_x program needs 1000001 instructions against the verifier's
-  #    1000000 limit, so libbpf fails the whole object with "Argument list too
-  #    long" and Falco exits with "Initialization issues during scap_init".
+  # Stock resources are fine on 0.44.1, no override needed. Measured steady state
+  # on Docker Desktop is ~150Mi against the subchart's 1Gi default limit.
   #
-  # Note that BTF is NOT the blocker. /sys/kernel/btf/vmlinux is present on this
-  # kernel, so a comment claiming modern eBPF works here because BTF exists is
-  # checking the wrong precondition. The verifier limit is the hard stop, and the
-  # other drivers cannot substitute, legacy `ebpf` wants kernel headers and `kmod`
-  # wants to compile a module, neither of which LinuxKit provides.
-  enabled: false
+  # The `condition: falco.enabled` on the dependency in Chart.yaml makes this a
+  # real toggle. Set enabled: false for an environment whose kernel lacks BTF.
+  enabled: true
   driver:
     kind: modern_ebpf
   # Falco's own falco.yaml settings live under this nested `falco:` key (the
