@@ -2,6 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+contrast:
+  serverEnvironment: ""
+
 mysql:
   rootPassword: cargocats
   database: db
@@ -104,6 +107,8 @@ falco:
 
 ingress-nginx:
   controller:
+    admissionWebhooks:
+      enabled: false
     ingressClass: nginx
     ingressClassResource:
       name: nginx  

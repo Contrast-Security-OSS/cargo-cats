@@ -8,3 +8,6 @@ secrets.yaml
 /.claude
 /.vscode
 /logs
+.idea/
+*.iml
+**/obj/

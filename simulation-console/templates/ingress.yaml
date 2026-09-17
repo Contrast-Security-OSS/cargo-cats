@@ -3,6 +3,13 @@ kind: Ingress
 metadata:
   name: simulation-console-ingress
   namespace: {{ .Release.Namespace }}
+  annotations:
+    # Delete All kicks off an async bulk delete per application and then polls for up to
+    # 60s waiting for it to finish, which routinely runs past nginx's 60s default. Without
+    # these the browser gets a 504 and reports a network error while the request handling
+    # is still running server side, which looks exactly like "the button does nothing".
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
 spec:
   ingressClassName: nginx
   rules:

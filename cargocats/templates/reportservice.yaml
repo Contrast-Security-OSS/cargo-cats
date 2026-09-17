@@ -27,7 +27,9 @@ spec:
           - name: CONTRAST__APPLICATION__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.reportservice.name }}'
           - name: CONTRAST__SERVER__NAME
-            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.reportservice.name }}-agent'
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.reportservice.name }}-{{ .Values.contrast.serverEnvironment }}-agent'
+          - name: CONTRAST__SERVER__ENVIRONMENT
+            value: '{{ .Values.contrast.serverEnvironment }}'
           - name: OLLAMA_BASE_URL
             value: "http://ollama:11434/v1"
           - name: OLLAMA_MODEL
