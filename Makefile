@@ -191,3 +191,52 @@ uninstall:
 
 redeploy: uninstall deploy
 	@echo "Redeployment complete!"
+
+# Deployments that make up the Cargo Cats webapp. The helm release is named "cargocats"
+# (see run-helm), so every deployment is cargocats-<service>. "contrast-cargo-cats" is a
+# legacy release name that only survives in the uninstall target.
+CARGOCATS_DEPLOYMENTS := aiservice dataservice db docservice frontgateservice \
+	imageservice labelservice reportservice webhookservice
+
+health:
+	@kubectl get pods
+	@echo ""
+	@bad=$$(kubectl get pods --no-headers | awk '$$3 != "Running" && $$3 != "Completed" { print "  " $$1 " (" $$3 ")" }'); \
+	notready=$$(kubectl get pods --no-headers | awk '$$3 == "Running" { split($$2, r, "/"); if (r[1] != r[2]) print "  " $$1 " (" $$2 " ready)" }'); \
+	if [ -n "$$bad$$notready" ]; then \
+		echo "Unhealthy pods:"; \
+		[ -n "$$bad" ] && echo "$$bad"; \
+		[ -n "$$notready" ] && echo "$$notready"; \
+		echo ""; \
+		echo "Run 'make clean-failed-pods' to clear tombstones, or 'make reset-demo' to cycle the app."; \
+		exit 1; \
+	else \
+		echo "All pods Running and ready."; \
+	fi
+
+# Pods in Failed phase (evicted or OOMKilled) are not garbage collected by Kubernetes and
+# linger indefinitely next to their healthy replacement. Clearing them is safe: the
+# ReplicaSet has already replaced anything it still needs.
+clean-failed-pods:
+	@echo "Removing pods left in Failed phase..."
+	kubectl delete pods --field-selector status.phase=Failed
+	@echo "Failed pod cleanup complete."
+
+reset-demo: clean-failed-pods
+	@echo "Cycling Cargo Cats webapp pods..."
+	kubectl rollout restart $(foreach d,$(CARGOCATS_DEPLOYMENTS),deployment/cargocats-$(d))
+	@echo "Waiting for rollout to complete..."
+	@for d in $(CARGOCATS_DEPLOYMENTS); do \
+		kubectl rollout status deployment/cargocats-$$d --timeout=180s || exit 1; \
+	done
+	@echo "Demo reset complete. All webapp pods have been cycled."
+
+# console-ui runs with imagePullPolicy: Never against the mutable tag console-ui:latest.
+# A rebuilt image is therefore NOT picked up by "helm upgrade" on its own: the pod spec is
+# byte identical, so Kubernetes sees no reason to recreate the pod and it keeps running the
+# image it started with. The rollout restart is what actually loads new code.
+redeploy-console: deploy-simulation-console
+	@echo "Restarting console-ui so it picks up the rebuilt image..."
+	kubectl rollout restart deployment/simulation-console-console-ui
+	kubectl rollout status deployment/simulation-console-console-ui --timeout=180s
+	@echo "Console redeployed: http://console.localhost"
