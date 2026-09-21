@@ -821,8 +821,11 @@ def delete_all():
     Notes learned from the live API:
       * The ns-ui issues/incidents list endpoints are POST (GET returns 405) and IGNORE the
         applicationName body filter, so results are filtered client-side by application ID.
-      * Assess issues that are children of an attack incident return 403 on direct DELETE;
-        deleting the parent incident cascades and removes them, so incidents are deleted first.
+      * Assess issues that are children of an attack incident return 403 on direct DELETE,
+        so the parent incident is deleted first to unlink them.
+      * Deleting an incident does NOT delete its children. It unlinks them, leaving each
+        one in place with incidentId=None. Every child still needs its own DELETE, and a
+        run that assumes otherwise reports issues as removed while they are still there.
     """
     try:
         logger.info("Delete all incidents/issues requested")
@@ -874,18 +877,53 @@ def delete_all():
             }), 200
 
         def _list_all(endpoint, key):
-            """Page through a ns-ui POST list endpoint and return all items."""
-            items, page = [], 0
+            """Page through a ns-ui POST list endpoint and return all items.
+
+            These endpoints are cursor based, and two API quirks have to be respected
+            together or the caller silently gets wrong results.
+
+            The `page` parameter does not exist. Passing it is accepted and ignored, so
+            every request returns the same first records. The previous implementation
+            paged on `page` and stopped when a batch came back short, which meant that
+            as soon as the org held 100 or more issues it re-fetched the first page
+            forever, accumulating duplicates until it ran out of memory. It never
+            reached the delete step, so Delete All appeared to do nothing at all.
+
+            `size` is capped at 100, and on hitting the cap the API wrongly reports
+            hasMore=false with a null cursor. Asking for 100 therefore truncates the
+            result to the first 100 silently. Staying just under the cap keeps the
+            cursor and hasMore correct.
+            """
+            page_size = 99
+            items, seen, cursor, pages = [], set(), None, 0
             while True:
+                params = {'size': page_size}
+                if cursor:
+                    params['cursor'] = cursor
                 resp = requests.post(f"{ns_base}/{endpoint}", headers=headers,
-                                     params={'page': page, 'size': 100}, json={}, timeout=30)
+                                     params=params, json={}, timeout=30)
                 if resp.status_code != 200:
                     raise RuntimeError(f"{endpoint} list returned {resp.status_code}: {resp.text[:200]}")
-                batch = (resp.json() or {}).get(key, [])
-                items.extend(batch)
-                if len(batch) < 100:
+                body = resp.json() or {}
+                batch = body.get(key, [])
+                fresh = 0
+                for item in batch:
+                    ident = item.get('issueId') or item.get('incidentId')
+                    if ident is None or ident in seen:
+                        continue
+                    seen.add(ident)
+                    items.append(item)
+                    fresh += 1
+                cursor = body.get('cursor')
+                pages += 1
+                # Stop on the API's own signal, and independently if a page brought
+                # nothing new, so a future pagination change cannot spin forever.
+                if not body.get('hasMore') or not cursor or fresh == 0:
+                    logger.info(f"Listed {len(items)} {endpoint} over {pages} page(s)")
                     return items
-                page += 1
+                if pages >= 1000:
+                    raise RuntimeError(
+                        f"{endpoint} pagination exceeded {pages} pages, aborting")
 
         def _delete_with_retry(url, attempts=4, backoff=1.5):
             """DELETE that tolerates the transient 500s the ns-ui API returns mid-delete;
@@ -904,8 +942,17 @@ def delete_all():
             logger.warning(f"DELETE {url} not confirmed after {attempts} attempts (last={last})")
             return False
 
-        # 2. Issues that belong to our applications.
-        our_issues = [i for i in _list_all('issues', 'issues') if i.get('applicationId') in app_ids]
+        # 2. Issues for our applications, plus a full incident -> children map. Deleting an
+        #    incident cascades to ALL of its children, so we need to know whether an incident
+        #    is exclusively ours before removing it.
+        all_issues = _list_all('issues', 'issues')
+        children_by_incident = {}
+        for issue in all_issues:
+            inc_id = issue.get('incidentId')
+            if inc_id:
+                children_by_incident.setdefault(inc_id, []).append(issue)
+
+        our_issues = [i for i in all_issues if i.get('applicationId') in app_ids]
         linked_by_incident = {}
         standalone_issues = []
         for issue in our_issues:
@@ -915,36 +962,85 @@ def delete_all():
             else:
                 standalone_issues.append(issue)
 
-        # 3. Delete the attack incidents that own our issues (this cascades the child issues).
-        incidents_deleted = incidents_failed = cascaded_issues = 0
-        for inc_id in linked_by_incident:
+        logger.info(
+            f"Scope resolved: {len(all_issues)} issue(s) in org, {len(our_issues)} ours "
+            f"across {len(app_ids)} application(s). {len(linked_by_incident)} incident(s) "
+            f"to consider, {len(standalone_issues)} standalone issue(s) to delete directly."
+        )
+
+        # 3. Delete the attack incidents that own our issues.
+        #
+        #    Deleting an incident does NOT delete its child issues. It only unlinks them,
+        #    leaving each child in place with incidentId=None and incidentCount=0. That
+        #    matters because a child issue still attached to an incident returns 403 on
+        #    direct DELETE, so removing the incident is what makes the children deletable,
+        #    and every child then still has to be deleted individually in step 4.
+        #
+        #    An incident that also owns issues belonging to applications outside this demo
+        #    is left alone, because in a shared org removing it would unlink and expose
+        #    another tenant's findings. Its demo-owned children stay linked and therefore
+        #    cannot be deleted, so they are reported as skipped rather than retried to
+        #    failure.
+        incidents_deleted = incidents_failed = incidents_skipped_shared = 0
+        deletable_issues = list(standalone_issues)
+        blocked_issues = 0
+        for inc_id, our_children in linked_by_incident.items():
+            all_children = children_by_incident.get(inc_id, our_children)
+            if not all(c.get('applicationId') in app_ids for c in all_children):
+                incidents_skipped_shared += 1
+                blocked_issues += len(our_children)
+                logger.warning(
+                    f"Incident {inc_id} also owns issues outside this demo's applications; "
+                    "leaving it and its children in place."
+                )
+                continue
             if _delete_with_retry(f"{ns_base}/incidents/{inc_id}"):
                 incidents_deleted += 1
-                cascaded_issues += len(linked_by_incident[inc_id])
+                deletable_issues.extend(our_children)
             else:
                 incidents_failed += 1
+                blocked_issues += len(our_children)
 
-        # 4. Delete the remaining standalone assess issues directly.
+        # 4. Delete our issues individually, including the children just unlinked by the
+        #    incident deletions above. Nothing is counted as removed unless its own DELETE
+        #    was confirmed.
         issues_deleted = issues_failed = 0
-        for issue in standalone_issues:
+        for issue in deletable_issues:
             if _delete_with_retry(f"{ns_base}/issues/{issue.get('issueId')}"):
                 issues_deleted += 1
             else:
                 issues_failed += 1
 
-        total_issues_removed = cascaded_issues + issues_deleted
-        msg = (f"Cleared {incidents_deleted} incident(s) and {total_issues_removed} issue(s) "
+        # 5. Re-list and report what is actually left, rather than trusting the counters.
+        #    A cascade that silently did nothing is exactly how this went unnoticed before.
+        remaining = [i for i in _list_all('issues', 'issues')
+                     if i.get('applicationId') in app_ids]
+        failures = incidents_failed + issues_failed
+        msg = (f"Cleared {incidents_deleted} incident(s) and {issues_deleted} issue(s) "
                f"across {len(app_ids)} application(s). CVEs/libraries were not touched.")
-        logger.info(msg + f" (incident_failures={incidents_failed}, issue_failures={issues_failed})")
+        if incidents_skipped_shared:
+            msg += (f" Left {incidents_skipped_shared} incident(s) and {blocked_issues} "
+                    "linked issue(s) in place because they are shared with applications "
+                    "outside this demo.")
+        if failures:
+            msg += f" {failures} object(s) could not be confirmed deleted, see console-ui logs."
+        if remaining:
+            msg += f" {len(remaining)} issue(s) still present after the run."
+        logger.info(msg + f" (incident_failures={incidents_failed}, "
+                          f"issue_failures={issues_failed}, remaining={len(remaining)})")
+        unclean = failures or (len(remaining) > blocked_issues)
         return jsonify({
-            "status": "success",
+            "status": "warning" if unclean else "success",
             "message": msg,
             "summary": {
                 "applications": len(app_ids),
                 "incidents_deleted": incidents_deleted,
                 "incidents_failed": incidents_failed,
-                "issues_removed": total_issues_removed,
-                "issues_failed": issues_failed
+                "incidents_skipped_shared": incidents_skipped_shared,
+                "issues_removed": issues_deleted,
+                "issues_failed": issues_failed,
+                "issues_blocked_shared": blocked_issues,
+                "issues_remaining": len(remaining)
             }
         }), 200
 
