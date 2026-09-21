@@ -83,14 +83,28 @@ fluent-bit:
           Suppress_Type_Name On
 
 falco:
-  # Falco runs by default. It works on Docker Desktop through the modern eBPF
-  # (CO-RE) driver, which needs kernel BTF (/sys/kernel/btf/vmlinux) rather than
-  # kernel headers, so nothing is compiled on the node. Current Docker Desktop
-  # kernels ship BTF, so the probe loads directly.
+  # Falco runs by default via the modern eBPF (CO-RE) driver, which needs kernel
+  # BTF (/sys/kernel/btf/vmlinux) rather than kernel headers, so nothing is
+  # compiled on the node. Docker Desktop's LinuxKit kernel ships BTF, and it has
+  # neither kernel headers nor a prebuilt module, so modern_ebpf is the only
+  # driver that can work here. Do not switch `kind` to kmod or ebpf on Docker
+  # Desktop, both need to build something the node cannot build.
+  #
+  # The subchart must stay at >= 9.x (appVersion >= 0.44.0). Falco <= 0.43
+  # cannot load the modern probe here at all: the BPF verifier rejects
+  # sendmmsg_x/recvmmsg_x for needing 1000001 instructions against its 1000000
+  # limit, libbpf then fails the whole bpf_probe object, and Falco exits with
+  # "Initialization issues during scap_init". On chart 5.0.0 (Falco 0.41.0) that
+  # presented as a permanent CrashLoopBackOff, and because the doomed probe load
+  # also blew through the 1Gi memory limit it surfaced first as an unexplained
+  # OOMKill (exit 137), which hides the real error. Fixed in libs 0.25.0, shipped
+  # in Falco 0.44.0. See https://github.com/falcosecurity/falco/issues/3829
+  #
+  # Stock resources are fine on 0.44.1, no override needed. Measured steady state
+  # on Docker Desktop is ~150Mi against the subchart's 1Gi default limit.
   #
   # The `condition: falco.enabled` on the dependency in Chart.yaml makes this a
-  # real toggle. Set enabled: false only for an environment whose kernel lacks
-  # BTF and cannot load the modern probe.
+  # real toggle. Set enabled: false for an environment whose kernel lacks BTF.
   enabled: true
   driver:
     kind: modern_ebpf
