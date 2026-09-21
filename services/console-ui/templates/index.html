@@ -1658,6 +1658,8 @@
             .then(data => {
                 if (data.status === 'success') {
                     showMessage(data.message, 'success');
+                } else if (data.status === 'warning') {
+                    showMessage(data.message, 'warning');
                 } else {
                     showMessage(data.message || 'Failed to delete all incidents/issues', 'error');
                 }

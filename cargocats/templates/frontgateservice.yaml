@@ -27,7 +27,9 @@ spec:
           - name: CONTRAST__APPLICATION__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.frontgateservice.name }}'
           - name: CONTRAST__SERVER__NAME
-            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.frontgateservice.name }}-agent'
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.frontgateservice.name }}-{{ .Values.contrast.serverEnvironment }}-agent'
+          - name: CONTRAST__SERVER__ENVIRONMENT
+            value: '{{ .Values.contrast.serverEnvironment }}'
           - name: SPRING_DATASOURCE_URL
             value: 'jdbc:mysql://{{.Release.Name}}-db:3306/{{ .Values.mysql.database }}?createDatabaseIfNotExist=true'
           - name: SPRING_DATASOURCE_USERNAME

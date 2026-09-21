@@ -27,7 +27,9 @@ spec:
           - name: CONTRAST__APPLICATION__NAME
             value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.docservice.name }}'
           - name: CONTRAST__SERVER__NAME
-            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.docservice.name }}-agent'
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.docservice.name }}-{{ .Values.contrast.serverEnvironment }}-agent'
+          - name: CONTRAST__SERVER__ENVIRONMENT
+            value: '{{ .Values.contrast.serverEnvironment }}'
           - name: FLASK_ENV
             value: 'development'
           - name: PYTHONUNBUFFERED

@@ -819,10 +819,15 @@ def delete_all():
     API and are never touched.
 
     Notes learned from the live API:
-      * The ns-ui issues/incidents list endpoints are POST (GET returns 405) and IGNORE the
-        applicationName body filter, so results are filtered client-side by application ID.
-      * Assess issues that are children of an attack incident return 403 on direct DELETE;
-        deleting the parent incident cascades and removes them, so incidents are deleted first.
+      * There's a dedicated bulk delete, DELETE .../issues?applicationId=<id>, that removes
+        every issue for an application and cascades that issue's incident along with it
+        (deleting an issue always deletes its incident; an incident belongs to one
+        application). It runs asynchronously (202 Accepted, or 409 if a deletion is already
+        in progress for that application), so completion has to be confirmed by polling
+        rather than trusting the initial response.
+      * GET .../issues/count?applicationIds=<id> takes the same filters as the list
+        endpoint but returns just a count, so polling for completion doesn't need to page
+        through the full issue list.
     """
     try:
         logger.info("Delete all incidents/issues requested")
@@ -873,78 +878,57 @@ def delete_all():
                 "message": f"No applications found starting with '{filter_name}'"
             }), 200
 
-        def _list_all(endpoint, key):
-            """Page through a ns-ui POST list endpoint and return all items."""
-            items, page = [], 0
-            while True:
-                resp = requests.post(f"{ns_base}/{endpoint}", headers=headers,
-                                     params={'page': page, 'size': 100}, json={}, timeout=30)
-                if resp.status_code != 200:
-                    raise RuntimeError(f"{endpoint} list returned {resp.status_code}: {resp.text[:200]}")
-                batch = (resp.json() or {}).get(key, [])
-                items.extend(batch)
-                if len(batch) < 100:
-                    return items
-                page += 1
+        def _count_our_issues():
+            """Ask the ns-ui count endpoint how many issues remain across our
+            applications, rather than paging through the full issue list just to check."""
+            resp = requests.get(f"{ns_base}/issues/count", headers=headers,
+                                 params={'applicationIds': list(app_ids)}, timeout=30)
+            if resp.status_code != 200:
+                raise RuntimeError(f"issues count returned {resp.status_code}: {resp.text[:200]}")
+            return (resp.json() or {}).get('count') or 0
 
-        def _delete_with_retry(url, attempts=4, backoff=1.5):
-            """DELETE that tolerates the transient 500s the ns-ui API returns mid-delete;
-            returns True once the object is gone (2xx or 404 on any attempt)."""
-            last = None
-            for n in range(attempts):
-                try:
-                    r = requests.delete(url, headers=headers, timeout=30)
-                    if r.status_code in (200, 202, 204, 404):
-                        return True
-                    last = r.status_code
-                except Exception as e:
-                    last = str(e)
-                if n < attempts - 1:
-                    time.sleep(backoff)
-            logger.warning(f"DELETE {url} not confirmed after {attempts} attempts (last={last})")
-            return False
-
-        # 2. Issues that belong to our applications.
-        our_issues = [i for i in _list_all('issues', 'issues') if i.get('applicationId') in app_ids]
-        linked_by_incident = {}
-        standalone_issues = []
-        for issue in our_issues:
-            inc_id = issue.get('incidentId')
-            if inc_id:
-                linked_by_incident.setdefault(inc_id, []).append(issue)
+        # 2. Kick off the bulk delete for each application. This removes every issue for
+        #    the application and cascades its incidents along with it, but runs
+        #    asynchronously, so a 202/409 here only means deletion is running or already
+        #    running, not that it has finished.
+        delete_requested = delete_request_failed = 0
+        for app_id in app_ids:
+            resp = requests.delete(f"{ns_base}/issues", headers=headers,
+                                    params={'applicationId': app_id, 'deleteObservations': 'false'},
+                                    timeout=30)
+            if resp.status_code in (200, 202, 409):
+                delete_requested += 1
             else:
-                standalone_issues.append(issue)
+                delete_request_failed += 1
+                logger.warning(f"Bulk delete for application {app_id} returned "
+                                f"{resp.status_code}: {resp.text[:200]}")
 
-        # 3. Delete the attack incidents that own our issues (this cascades the child issues).
-        incidents_deleted = incidents_failed = cascaded_issues = 0
-        for inc_id in linked_by_incident:
-            if _delete_with_retry(f"{ns_base}/incidents/{inc_id}"):
-                incidents_deleted += 1
-                cascaded_issues += len(linked_by_incident[inc_id])
-            else:
-                incidents_failed += 1
+        # 3. The deletion is asynchronous, so poll the count endpoint until nothing of
+        #    ours is left or we time out, rather than trusting the initial response.
+        poll_interval, timeout, waited = 3, 60, 0
+        remaining = _count_our_issues()
+        while remaining and waited < timeout:
+            time.sleep(poll_interval)
+            waited += poll_interval
+            remaining = _count_our_issues()
 
-        # 4. Delete the remaining standalone assess issues directly.
-        issues_deleted = issues_failed = 0
-        for issue in standalone_issues:
-            if _delete_with_retry(f"{ns_base}/issues/{issue.get('issueId')}"):
-                issues_deleted += 1
-            else:
-                issues_failed += 1
-
-        total_issues_removed = cascaded_issues + issues_deleted
-        msg = (f"Cleared {incidents_deleted} incident(s) and {total_issues_removed} issue(s) "
-               f"across {len(app_ids)} application(s). CVEs/libraries were not touched.")
-        logger.info(msg + f" (incident_failures={incidents_failed}, issue_failures={issues_failed})")
+        status = "success" if not remaining and delete_request_failed == 0 else "warning"
+        msg = (f"Requested deletion for {delete_requested} application(s). "
+               f"CVEs/libraries were not touched.")
+        if delete_request_failed:
+            msg += f" {delete_request_failed} application(s) failed to start deletion."
+        if remaining:
+            msg += (f" {remaining} issue(s) still present after {waited}s; "
+                     "deletion may still be finishing.")
+        logger.info(msg)
         return jsonify({
-            "status": "success",
+            "status": status,
             "message": msg,
             "summary": {
                 "applications": len(app_ids),
-                "incidents_deleted": incidents_deleted,
-                "incidents_failed": incidents_failed,
-                "issues_removed": total_issues_removed,
-                "issues_failed": issues_failed
+                "delete_requested": delete_requested,
+                "delete_request_failed": delete_request_failed,
+                "issues_remaining": remaining
             }
         }), 200
 

@@ -123,7 +123,8 @@ run-helm: build-containers
 	echo ""
 	@echo "Deploying cluster..."
 	helm upgrade --install cargocats  ./cargocats   --cleanup-on-fail \
-		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME)
+		--set contrast.uniqName=$(CONTRAST__UNIQ__NAME) \
+		--set contrast.serverEnvironment=$(CONTRAST__SERVER__ENVIRONMENT)
 
 deploy-simulation-console: build-console-ui build-contrastdatacollector
 	@echo "Waiting for ingress controller to be ready..."
