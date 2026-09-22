@@ -104,3 +104,63 @@ updates:
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 0
+
+  - package-ecosystem: docker
+    directory: /services/aiservice
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /services/reportservice
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /services/aiservice
+    schedule:
+      interval: daily
+    groups:
+      dev-dependencies:
+          applies-to: version-updates
+          patterns:
+              - '*'
+          dependency-type: development
+      production-dependencies:
+          applies-to: version-updates
+          patterns:
+              - '*'
+          dependency-type: production
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 5
+      include:
+          - '*'
+      exclude:
+          - react
+
+  - package-ecosystem: maven
+    directory: /services/reportservice
+    schedule:
+      interval: daily
+    groups:
+      dev-dependencies:
+          applies-to: version-updates
+          patterns:
+              - '*'
+          dependency-type: development
+      production-dependencies:
+          applies-to: version-updates
+          patterns:
+              - '*'
+          dependency-type: production
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 5
+      include:
+          - '*'
+      exclude:
+          - react
