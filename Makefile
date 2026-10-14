@@ -116,7 +116,12 @@ build-aiservice:
 	cd services/aiservice && \
 	docker build -t aiservice:latest  .
 
-build-containers: build-dataservice build-webhookservice build-frontgateservice build-console-ui build-exploit-server build-imageservice build-labelservice build-docservice build-reportservice build-contrastdatacollector build-aiservice
+build-trackingreportservice:
+	@echo "Building trackingreportservice..."
+	cd services/trackingreportservice && \
+	docker build -t trackingreportservice:latest  .
+
+build-containers: build-dataservice build-webhookservice build-frontgateservice build-console-ui build-exploit-server build-imageservice build-labelservice build-docservice build-reportservice build-contrastdatacollector build-aiservice build-trackingreportservice
 	@echo "\nBuilding containers complete."
 
 run-helm: build-containers 
