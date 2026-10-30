@@ -1,4 +1,6 @@
-FROM node:18-alpine
+# Node 22 on glibc: the Contrast Node agent (5.67+) needs Node >= 20, and its
+# arm64 native addons have no musl build, so Alpine is out on Apple Silicon.
+FROM node:22-slim
 
 # Set working directory
 WORKDIR /app
@@ -13,8 +15,8 @@ RUN npm install --production
 COPY . .
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --system --shell /usr/sbin/nologin nodejs
 
 # Change ownership of the app directory
 RUN chown -R nodejs:nodejs /app
