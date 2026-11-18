@@ -17,6 +17,8 @@ This document details the intentional security vulnerabilities present in the Ca
 11. [XML External Entity (XXE) - Document Processing Service](#11-xml-external-entity-xxe---document-processing-service)
 12. [Untrusted Deserialization - Address Import Feature](#12-untrusted-deserialization---address-import-feature)
 13. [Server-Side Template Injection / RCE (CVE-2025-64087) - Report Service](#13-server-side-template-injection--rce-cve-2025-64087---report-service)
+14. [Path Traversal (PHP, trackingreportservice)](#14-path-traversal-php-trackingreportservice)
+15. [XPath Injection (PHP, trackingreportservice)](#15-xpath-injection-php-trackingreportservice)
 
 ---
 
@@ -562,4 +564,69 @@ The report service uses XDocReport FreeMarker template engine v2.1.0, which allo
 - Remote code execution on the application server
 - Data exfiltration (files, secrets, environment variables)
 - Lateral movement to other services in the cluster
+
+---
+
+### 14. Path Traversal (PHP, trackingreportservice)
+
+**Vulnerability Details:**
+The PHP/Symfony `trackingreportservice` exposes a download endpoint that concatenates the user-supplied `file` query parameter directly to the base export directory with no `realpath()` check, no `basename()` stripping, and no allowlist. An attacker can use `../` segments to escape `var/reports/exports/` and read arbitrary files on the container filesystem.
+
+**Service:** `trackingreportservice` (PHP/Symfony)
+**Endpoint:** `GET /api/tracking-report/download?file=<name>`
+**Sink:** `file_get_contents($this->exportsDir . '/' . $file)` in `TrackingReportController::downloadReport`
+
+**Legitimate request:**
+```bash
+curl 'http://cargocats.localhost/api/tracking-report/download?file=TRACK-A1B2C3D4.txt'
+```
+
+Returns the seeded plain-text report for that shipment.
+
+**Exploit payload:**
+```bash
+curl 'http://cargocats.localhost/api/tracking-report/download?file=../../../../../etc/passwd'
+```
+
+With Contrast Protect **disabled**, returns the contents of `/etc/passwd`.
+With Contrast Protect **enabled**, the agent blocks the request.
+
+
+**Impact:**
+- Disclosure of arbitrary files readable by the PHP-FPM process
+- Exposure of application secrets, configuration, and OS files
+- Reconnaissance enabling follow-on attacks
+
+---
+
+### 15. XPath Injection (PHP, trackingreportservice)
+
+**Vulnerability Details:** The PHP trackingreportservice exposes a search endpoint that builds an XPath query by string-concatenating the user-supplied `q` query parameter. An attacker can break out of the `contains()` predicate to inject arbitrary XPath expressions, dump every record via a tautology, or perform blind exfiltration by guessing substrings.
+
+**Service:** `trackingreportservice` (PHP/Symfony)
+**Endpoint:** `GET /api/tracking-report/search?q=<term>`
+**Sink:** `DOMXPath::query($query)` in `TrackingReportController::searchTrackingHistory`, where `$query` is built by interpolating `$term` into a multi-clause XPath predicate.
+
+**Legitimate request:**
+```bash
+curl 'http://cargocats.localhost/api/tracking-report/search?q=chicago'
+```
+
+Returns shipments whose tracking ID, origin, destination, or cat name contains "chicago".
+
+**Exploit payload (tautology, dumps all shipments):**
+```bash
+curl "http://cargocats.localhost/api/tracking-report/search?q=x%27%29%20or%20%271%27%3D%271%27%20or%20contains%28cat%2C%27"
+```
+(Decoded: `q=x') or '1'='1' or contains(cat,'`)
+
+**Exploit payload (blind exfiltration, returns Whiskers if any cat name contains "iskers"):**
+```bash
+curl "http://cargocats.localhost/api/tracking-report/search?q=x%27%29%20or%20contains%28cat%2C%27iskers%27%29%20or%20contains%28cat%2C%27"
+```
+
+**Impact:**
+- Bypass of intended search filtering
+- Disclosure of every record in the underlying XML store regardless of access controls
+- Substring-based exfiltration of sensitive field values via blind injection
 

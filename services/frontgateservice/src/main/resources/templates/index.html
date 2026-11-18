@@ -336,6 +336,23 @@
                             <i class="fas fa-info-circle me-1"></i>
                             Tracking IDs start with "TRACK-" followed by 8 characters
                         </small>
+
+                        <hr class="my-4">
+
+                        <h5 class="mb-3">
+                            <i class="fas fa-history me-2 text-primary"></i>Search Tracking History
+                        </h5>
+                        <form id="historySearchForm">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control tracking-input"
+                                       placeholder="Search by tracking ID, city, or cat name..."
+                                       id="historySearchTerm" required>
+                                <button class="btn btn-track" type="submit">
+                                    <i class="fas fa-search me-2"></i>Search
+                                </button>
+                            </div>
+                        </form>
+                        <div id="historySearchResult" class="mt-3"></div>
                     </div>
                 </div>
             </div>
@@ -455,6 +472,69 @@
                 });
         });
         
+        // Escape HTML special chars to prevent DOM-XSS when interpolating
+        // user-controlled values into template literals.
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Tracking history search handler
+        document.getElementById('historySearchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const term = document.getElementById('historySearchTerm').value.trim();
+            const resultDiv = document.getElementById('historySearchResult');
+
+            if (!term) {
+                resultDiv.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>Please enter a search term</div>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin me-2"></i>Searching history...</div>';
+
+            fetch(`/api/tracking-report/search?q=${encodeURIComponent(term)}`)
+                .then(r => r.json())
+                .then(data => {
+                    const results = data.results || [];
+                    const termEsc = escapeHtml(term);
+                    if (results.length === 0) {
+                        resultDiv.innerHTML = `<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No tracking history matched "${termEsc}".</div>`;
+                        return;
+                    }
+                    const rows = results.map(s => `
+                        <tr>
+                            <td><code>${escapeHtml(s.tracking_id)}</code></td>
+                            <td>${escapeHtml(s.cat)}</td>
+                            <td>${escapeHtml(s.origin)}</td>
+                            <td>${escapeHtml(s.destination)}</td>
+                            <td><span class="badge bg-info">${escapeHtml(s.current_status)}</span></td>
+                            <td>${escapeHtml(s.event_count)}</td>
+                        </tr>
+                    `).join('');
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success py-2 mb-2">
+                            <i class="fas fa-check-circle me-2"></i>${data.count} result${data.count === 1 ? '' : 's'} for "${termEsc}"
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr><th>Tracking ID</th><th>Cat</th><th>Origin</th><th>Destination</th><th>Status</th><th>Events</th></tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Search failed: ${escapeHtml(error.message)}</div>`;
+                });
+        });
+
         // Smooth scrolling for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {

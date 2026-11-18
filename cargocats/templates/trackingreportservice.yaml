@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: '{{.Release.Name}}-{{ .Values.trackingreportservice.name }}'
+  namespace: {{ .Release.Namespace }}
+  labels:
+    contrast-agent: flex
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.trackingreportservice.name }}
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
+      labels:
+        app: {{ .Values.trackingreportservice.name }}
+    spec:
+      containers:
+        - name: {{ .Values.trackingreportservice.name }}
+          image: {{ .Values.trackingreportservice.image }}
+          imagePullPolicy: Never
+          env:
+          - name: CONTRAST__APPLICATION__NAME
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.trackingreportservice.name }}'
+          - name: CONTRAST__SERVER__NAME
+            value: '{{ .Values.contrast.uniqName }}-{{.Release.Name}}-{{ .Values.trackingreportservice.name }}-agent'
+          - name: DB_HOST
+            value: '{{.Release.Name}}-db'
+          - name: DB_NAME
+            value: '{{ .Values.mysql.database }}'
+          - name: DB_USER
+            value: '{{ .Values.mysql.user }}'
+          - name: DB_PASSWORD
+            value: '{{ .Values.mysql.password }}'
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+              ephemeral-storage: "512Mi"
+            limits:
+              memory: "256Mi"
+              cpu: "100m"
+              ephemeral-storage: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 80
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trackingreportservice
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ .Values.trackingreportservice.name }}
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
