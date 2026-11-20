@@ -15,6 +15,15 @@ cd "$(dirname "$0")"
 PORT="${PORT:-8081}"
 CVE="CVE-2018-1000210"
 LOGS=/contrast/data/logs
+# INFO-level line the agent writes once it holds the shield for the library.
+LOADED="CVE '$CVE' matched library"
+NEEDS_DEBUG="(none, these lines need the agent log level at DEBUG)"
+# The shield fields only appear in the DEBUG-level definition line.
+SHIELD_FIELDS="grep -h 'Received a new CVE Shield definition' $LOGS/*Sensors*.log | grep '$CVE' | tail -n1 \\
+    | grep -o -E '\"(Mode|MaxSupportedBehavior)\":\"[A-Z]+\"|\"Denied\":\\[[^]]*\\]' | sort -u | grep . \\
+    || echo '$NEEDS_DEBUG'"
+# Timestamp plus the event text, without the thread and logger columns or the long rule id.
+EVENT_LINE="sed -E 's/^([0-9-]+ [0-9:.]+).*(Report(Entry|CapabilityExploited)Event)/\\1  \\2/; s/, RuleId.*//'"
 
 # Newest running pod, so a pod still terminating after a restart is never picked.
 pod() {
@@ -49,18 +58,21 @@ warm)
     start_forward
     echo "Harmless tags import (normal usage, reports CVE exposure):"
     import_tags 'cat: whiskers\ncolor: orange\n'
-    echo "Waiting up to 90s for the agent to fetch the $CVE shield..."
-    in_pod "for i in \$(seq 1 45); do grep -q 'Received a new CVE Shield definition.*$CVE' $LOGS/*Sensors*.log 2>/dev/null && break; sleep 2; done
-        grep -h 'Received a new CVE Shield definition' $LOGS/*Sensors*.log | grep '$CVE' | tail -n1 \
-            | grep -o -E '\"(Mode|MaxSupportedBehavior)\":\"[A-Z]+\"|\"Denied\":\[[^]]*\]' | sort -u \
-            || echo 'Shield not received yet, rerun warm'"
+    echo "Waiting up to 90s for the agent to load the $CVE shield..."
+    in_pod "for i in \$(seq 1 45); do grep -q \"$LOADED\" $LOGS/*Sensors*.log 2>/dev/null && break; sleep 2; done
+        if ! grep -q \"$LOADED\" $LOGS/*Sensors*.log 2>/dev/null; then
+            echo 'Shield not loaded yet. Rerun warm. If it never loads, check that CVE Shield is enabled for your org.'
+            exit 0
+        fi
+        echo 'Shield loaded for YamlDotNet. Mode the agent holds:'
+        $SHIELD_FIELDS"
     ;;
 exploit)
     start_forward
     in_pod "rm -f /tmp/pwned"
     echo "Sending $CVE payload: !<!ThumbnailHook,imageservice> with Command: touch /tmp/pwned"
     import_tags '!<!ThumbnailHook,imageservice>\nCommand: touch /tmp/pwned\n'
-    if in_pod "test -f /tmp/pwned"; then
+    if in_pod "test -f /tmp/pwned" 2>/dev/null; then
         echo "EXPLOITED: /tmp/pwned was created (shield in MONITOR, or Contrast off). Run 'clean' before the next try."
     else
         echo "BLOCKED: /tmp/pwned was not created. Run 'logs' for the agent evidence."
@@ -68,17 +80,17 @@ exploit)
     ;;
 logs)
     echo "== Agent version"
-    in_pod "grep -h -m1 'Contrast Sensor Version' $LOGS/*Sensors*.log | sed -E 's/.*(Contrast Sensor Version)/\1/'"
-    echo "== $CVE shield received (mode, max behavior, denied capability)"
-    in_pod "grep -h 'Received a new CVE Shield definition' $LOGS/*Sensors*.log | grep '$CVE' | tail -n1 | cut -c1-24
-        grep -h 'Received a new CVE Shield definition' $LOGS/*Sensors*.log | grep '$CVE' | tail -n1 \
-            | grep -o -E '\"(Mode|MaxSupportedBehavior)\":\"[A-Z]+\"|\"Denied\":\[[^]]*\]' | sort -u"
+    in_pod "grep -h -m1 'Contrast Sensor Version' $LOGS/*Sensors*.log | sed -E 's/.*(Contrast Sensor Version)/\\1/'"
+    echo "== $CVE shield loaded (mode, max behavior, denied capability)"
+    in_pod "grep -h \"$LOADED\" $LOGS/*Sensors*.log | tail -n1 | sed -E 's/^([0-9-]+ [0-9:.]+).*(CVE .* matched library [^ ]+).*/\\1  \\2/'
+        $SHIELD_FIELDS"
     echo "== Entry events (vulnerable method reached)"
-    in_pod "grep -h \"'Entry' Event.*$CVE\" $LOGS/*Sensors*.log | cut -c1-24,90- | sed 's/, RuleId.*//' | tail -n5"
+    in_pod "grep -h \"'Entry' Event.*$CVE\" $LOGS/*Sensors*.log | tail -n5 | $EVENT_LINE | grep . || echo '$NEEDS_DEBUG'"
     echo "== Capability events (process start attempted in the CVE's scope)"
-    in_pod "grep -h \"'Capability' Event.*$CVE\" $LOGS/*Sensors*.log | cut -c1-24,90- | sed 's/, RuleId.*//' | tail -n5"
+    in_pod "grep -h \"'Capability' Event.*$CVE\" $LOGS/*Sensors*.log | tail -n5 | $EVENT_LINE | grep . || echo '$NEEDS_DEBUG'"
     echo "== Blocks (from the app log)"
-    kubectl logs "$(pod)" -c imageservice | grep "ShieldAttackBlockedException.*$CVE" | sed -E 's/^ *---> //' | tail -n5
+    kubectl logs "$(pod)" -c imageservice | grep "ShieldAttackBlockedException.*$CVE" | sed -E 's/^ *---> //' | tail -n5 \
+        | grep . || echo "(none yet, the agent was not in BLOCK or exploit has not run)"
     ;;
 clean)
     in_pod "rm -f /tmp/pwned"

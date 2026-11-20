@@ -596,23 +596,37 @@ kubectl port-forward svc/imageservice 8081:80
 
 **Contrast CVE Shield demo (monitor, then block):**
 
-The CVE-2018-1000210 shield supports BLOCK. It watches `YamlDotNet.Serialization.Deserializer.Deserialize(IParser, Type)` and denies starting a process inside it, so BLOCK stops the payload while ordinary tags imports keep working. `./dotnet-shield-demo.sh` (repo root) runs every step and handles the port-forward:
+The CVE-2018-1000210 shield supports BLOCK. It watches `YamlDotNet.Serialization.Deserializer.Deserialize(IParser, Type)` and denies starting a process inside it, so BLOCK stops the payload while ordinary tags imports keep working. `./dotnet-shield-demo.sh` (repo root) runs every step and handles the port-forward.
+
+Before the demo, in `contrast-agent-operator-config.yaml`, set the agent log level to DEBUG (it shows the shield mode and the shield events) and shorten the shield refresh, which is 5 minutes by default, so a MONITOR or BLOCK change reaches the agent in seconds. Apply it, and if Cargo Cats was deployed before this change, rebuild the image:
+
+```yaml
+agent:
+  logger:
+    level: DEBUG
+shield:
+  enable: true
+  refresh_interval_ms: 5000
+```
+
+```
+kubectl apply -f contrast-agent-operator-config.yaml
+make build-imageservice
+```
+
+The log level applies to every instrumented service, and DEBUG logs can fill a pod's 1Gi ephemeral storage over a few hours, so set it back to INFO after the demo.
 
 | Step | Command | Expected |
 |---|---|---|
 | 1. Fresh pod | `./dotnet-shield-demo.sh restart` | rollout succeeds |
-| 2. Warm up (normal usage) | `./dotnet-shield-demo.sh warm` | HTTP 200, then the shield the agent holds: `"Mode"`, `"MaxSupportedBehavior":"BLOCK"`, `"Denied":["process"]` |
-| 3. Set MONITOR in Contrast (Policies > CVE Shields), then attack | `./dotnet-shield-demo.sh exploit` | HTTP 200, `EXPLOITED: /tmp/pwned was created` |
-| 4. Reset | `./dotnet-shield-demo.sh clean` | removes `/tmp/pwned` |
-| 5. Set BLOCK in Contrast, then attack again | `./dotnet-shield-demo.sh exploit` | HTTP 500, `BLOCKED: /tmp/pwned was not created` |
-| 6. Agent evidence | `./dotnet-shield-demo.sh logs` | the shield definition, the `Entry` event, the `Capability` event (`process`) and `ShieldAttackBlockedException` |
+| 2. Set MONITOR in Contrast (Policies > CVE Shields, the org-wide default level) | | |
+| 3. Warm up (normal usage) | `./dotnet-shield-demo.sh warm` | HTTP 200, then `"Mode":"MONITOR"`, `"MaxSupportedBehavior":"BLOCK"`, `"Denied":["process"]` |
+| 4. Attack in MONITOR | `./dotnet-shield-demo.sh exploit` | HTTP 200, `EXPLOITED: /tmp/pwned was created` |
+| 5. Set BLOCK in Contrast, wait 10s, then attack again | `./dotnet-shield-demo.sh exploit` | HTTP 500, `BLOCKED: /tmp/pwned was not created` |
+| 6. Agent evidence | `./dotnet-shield-demo.sh logs` | the shield the agent holds, the `Entry` event, the `Capability` event (`process`) and `ShieldAttackBlockedException` |
 
 Notes:
 - Always run `warm` after `restart`. .NET loads YamlDotNet on first use, so the agent only discovers the library on the first `/importtags` call and fetches its shield shortly after. That first call is never shielded.
-- The agent picks up a MONITOR or BLOCK change on its next shield refresh, every 5 minutes by default. For a live demo, shorten it in `contrast-agent-operator-config.yaml` and re-apply it:
-  ```yaml
-  shield:
-    enable: true
-    refresh_interval_ms: 5000
-  ```
+- `exploit` removes `/tmp/pwned` before each attempt, and `clean` removes it after an EXPLOITED run.
+- Use the org-wide default level for MONITOR and BLOCK. An override scoped to a single application may not be applied for every org.
 - The .NET agent logs to `/contrast/data/logs/` in the pod. `*_Sensors_*.log` has the shield events, and the block appears in the app log (`kubectl logs deploy/cargocats-imageservice`).
