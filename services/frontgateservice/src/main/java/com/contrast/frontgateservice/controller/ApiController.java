@@ -663,6 +663,14 @@ public class ApiController {
                 .body(response.getBody());
     }
 
+    @PostMapping("/photos/tags")
+    public ResponseEntity<String> importPhotoTags(@RequestBody String tags) {
+        ResponseEntity<String> response = imageServiceProxy.importTags(tags);
+        return ResponseEntity.status(response.getStatusCode())
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(response.getBody());
+    }
+
     // Label service endpoints
     @PostMapping("/labels/generate")
     public ResponseEntity<byte[]> generateShippingLabel(@RequestBody Map<String, Object> labelData) {

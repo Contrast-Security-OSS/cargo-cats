@@ -13,6 +13,7 @@ var _ = JsonConvert.SerializeObject(new { loaded = "Newtonsoft.Json" });
 var __ = JavaScriptEncoder.Default;
 var ___ = typeof(Bitmap).FullName;
 var ____ = typeof(SqlConnection).FullName;
+var _____ = typeof(YamlDotNet.Serialization.Deserializer).FullName;
 Console.WriteLine("[DEBUG] Vulnerable dependencies loaded successfully");
 
 // Ensure the uploads directory exists
