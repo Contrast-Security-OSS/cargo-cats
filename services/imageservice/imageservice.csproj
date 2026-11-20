@@ -10,7 +10,7 @@
     <!-- Vulnerable packages for security testing -->
     <!-- CVE-2024-21907 - Newtonsoft.Json Improper Handling of Exceptional Conditions.
          The CVE Shield covers < 13.0.1, so 12.0.3 is used for the MONITOR demo (POST /photometa). -->
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 
     <!-- CVE-2018-1000210 - YamlDotNet RCE via unsafe deserialization. Its CVE Shield supports
          BLOCK, so it is used for the BLOCK demo (POST /importtags). -->
