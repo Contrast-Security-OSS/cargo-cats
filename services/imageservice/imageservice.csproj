@@ -14,7 +14,7 @@
 
     <!-- CVE-2018-1000210 - YamlDotNet RCE via unsafe deserialization. Its CVE Shield supports
          BLOCK, so it is used for the BLOCK demo (POST /importtags). -->
-    <PackageReference Include="YamlDotNet" Version="4.3.2" />
+    <PackageReference Include="YamlDotNet" Version="5.1.0" />
 
     <!-- CVE-2021-26701 - System.Text.Encodings.Web Denial of Service -->
     <PackageReference Include="System.Text.Encodings.Web" Version="4.7.1" />
