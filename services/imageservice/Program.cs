@@ -13,6 +13,7 @@ var _ = JsonConvert.SerializeObject(new { loaded = "Newtonsoft.Json" });
 var __ = JavaScriptEncoder.Default;
 var ___ = typeof(Bitmap).FullName;
 var ____ = typeof(SqlConnection).FullName;
+var _____ = typeof(YamlDotNet.Serialization.Deserializer).FullName;
 Console.WriteLine("[DEBUG] Vulnerable dependencies loaded successfully");
 
 // Ensure the uploads directory exists
@@ -114,5 +115,33 @@ app.MapGet("/getphoto", (string path) =>
     return Results.File(fileBytes, contentType);
 });
 
+// CVE Shield MONITOR demo: CVE-2024-21907, Newtonsoft.Json < 13.0.1 (JsonConvert.DeserializeObject)
+app.MapPost("/photometa", async (HttpRequest request) =>
+{
+    var body = await new StreamReader(request.Body).ReadToEndAsync();
+    Console.WriteLine("[DEBUG] POST /photometa - Parsing photo metadata JSON");
+    return Results.Ok(JsonConvert.DeserializeObject<Dictionary<string, string>>(body));
+});
+
+// CVE Shield BLOCK demo: CVE-2018-1000210, YamlDotNet < 5.0.0 (Deserializer.Deserialize(IParser, Type))
+app.MapPost("/importtags", async (HttpRequest request) =>
+{
+    var body = await new StreamReader(request.Body).ReadToEndAsync();
+    Console.WriteLine("[DEBUG] POST /importtags - Parsing photo tags YAML");
+    var deserializer = new YamlDotNet.Serialization.DeserializerBuilder().Build();
+    return Results.Ok(deserializer.Deserialize<object>(new StringReader(body)));
+});
+
 Console.WriteLine("[DEBUG] Starting image service application...");
 app.Run();
+
+// Post-processing hook a tags file can configure. Its setter runs a shell command, which makes it a
+// deserialization gadget for CVE-2018-1000210: YamlDotNet < 5.0.0 instantiates any type named in a tag.
+public class ThumbnailHook
+{
+    public string Command
+    {
+        get => "";
+        set => System.Diagnostics.Process.Start("/bin/sh", new[] { "-c", value })?.WaitForExit();
+    }
+}

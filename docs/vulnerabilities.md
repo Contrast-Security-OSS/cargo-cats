@@ -17,6 +17,7 @@ This document details the intentional security vulnerabilities present in the Ca
 11. [XML External Entity (XXE) - Document Processing Service](#11-xml-external-entity-xxe---document-processing-service)
 12. [Untrusted Deserialization - Address Import Feature](#12-untrusted-deserialization---address-import-feature)
 13. [Server-Side Template Injection / RCE (CVE-2025-64087) - Report Service](#13-server-side-template-injection--rce-cve-2025-64087---report-service)
+14. [Unsafe YAML Deserialization / RCE (CVE-2018-1000210) - Image Service](#14-unsafe-yaml-deserialization--rce-cve-2018-1000210---image-service)
 
 ---
 
@@ -563,3 +564,69 @@ The report service uses XDocReport FreeMarker template engine v2.1.0, which allo
 - Data exfiltration (files, secrets, environment variables)
 - Lateral movement to other services in the cluster
 
+### 14. Unsafe YAML Deserialization / RCE (CVE-2018-1000210) - Image Service
+
+**Vulnerability Details:**
+The image service (.NET 8) uses YamlDotNet 4.3.2 to parse photo tags sent to `POST /importtags`. YamlDotNet before 5.0.0 instantiates any .NET type named in a YAML tag (CVE-2018-1000210). The service has a `ThumbnailHook` post-processing class whose `Command` setter runs a shell command, so a tags file that names it is Remote Code Execution.
+
+The image service also pins Newtonsoft.Json 12.0.3 (CVE-2024-21907) and parses photo metadata with it at `POST /photometa`, so normal use exercises a second vulnerable library.
+
+**Exploitation via the Simulation Console:**
+
+1. In the simulation console, under the individual exploits, click **CVE-2018-1000210 RCE**
+2. The console logs in, imports an ordinary tags file (normal usage), then sends a tags file that runs `id` through `ThumbnailHook` and writes the output to a new file in the uploads folder
+3. It reads that file back through the photo viewer (`/api/photos/view`). The exploit log shows `SUCCESS: YAML deserialization exploit executed a command (output of id: uid=0(root) ...)`
+
+**Exploitation via curl:**
+
+Frontgate proxies tags imports at `POST /api/photos/tags` for a logged-in session. To call the image service directly, port-forward it:
+
+```
+kubectl port-forward svc/imageservice 8081:80
+printf '%s\n' '!<!ThumbnailHook,imageservice>' 'Command: touch /tmp/pwned' \
+  | curl -X POST localhost:8081/importtags --data-binary @-
+kubectl exec deploy/cargocats-imageservice -- ls /tmp/pwned
+```
+
+**Impact:**
+- Remote code execution on the image service
+- Data exfiltration (uploaded photos, environment variables, service account token)
+- Lateral movement to other services in the cluster
+
+**Contrast CVE Shield demo (monitor, then block):**
+
+The CVE-2018-1000210 shield supports BLOCK. It watches `YamlDotNet.Serialization.Deserializer.Deserialize(IParser, Type)` and denies starting a process inside it, so BLOCK stops the payload while ordinary tags imports keep working. The image service loads YamlDotNet at startup, so the agent holds the shield before the first import.
+
+The agent picks up a MONITOR or BLOCK change on its next shield refresh, every 5 minutes by default. Before the demo, shorten it in `contrast-agent-operator-config.yaml` and apply it:
+
+```yaml
+shield:
+  enable: true
+  refresh_interval_ms: 5000
+```
+
+```
+kubectl apply -f contrast-agent-operator-config.yaml
+```
+
+1. In Contrast, Policies > CVE Shields, set the default global CVE Shield protection level to MONITOR
+2. In the simulation console, click **CVE-2018-1000210 RCE**. The log shows `SUCCESS` with the output of `id`, and Contrast reports CVE-2018-1000210 as exploited on the image service
+3. Set the level to BLOCK and wait about 10 seconds
+4. Click **CVE-2018-1000210 RCE** again. The payload returns 500 and the log shows `BLOCKED: the payload failed with 500 and the command did not run`. Contrast reports the blocked attempt
+
+Use the org-wide default level for MONITOR and BLOCK. An override scoped to a single application may not be applied for every org.
+
+**Optional: agent log evidence** (needs kubectl, and `level: DEBUG` under `agent: logger:` in `contrast-agent-operator-config.yaml` for the first two commands):
+
+```
+# Mode the agent holds for the shield. The agent logs "new" for the first definition and "updated" after a policy change.
+kubectl exec deploy/cargocats-imageservice -- sh -c "grep -h -E 'Received an? (new|updated) CVE Shield definition' /contrast/data/logs/*Sensors*.log | grep CVE-2018-1000210 | tail -n1 | grep -o -E '\"Mode\":\"[A-Z]+\"'"
+
+# Vulnerable method reached, and the process start caught inside it
+kubectl exec deploy/cargocats-imageservice -- sh -c "grep -h -E \"'(Entry|Capability)' Event.*CVE-2018-1000210\" /contrast/data/logs/*Sensors*.log | tail -n4"
+
+# Blocks
+kubectl logs deploy/cargocats-imageservice | grep 'ShieldAttackBlockedException.*CVE-2018-1000210'
+```
+
+DEBUG applies to every instrumented service and can fill a pod's 1Gi ephemeral storage over a few hours, so set it back to INFO after the demo.

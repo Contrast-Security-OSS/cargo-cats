@@ -104,4 +104,22 @@ public class ImageServiceProxy {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
+    public ResponseEntity<String> importTags(String tags) {
+        try {
+            String url = imageServiceUrl + "/importtags";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.TEXT_PLAIN);
+
+            HttpEntity<String> entity = new HttpEntity<>(tags, headers);
+
+            return restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("{\"error\": \"Failed to import tags: " + e.getMessage() + "\"}");
+        }
+    }
 }

